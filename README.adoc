@@ -1,0 +1,28 @@
+= Neo4j-HTTP
+Michael Simons <michael.simons@neo4j.com>
+:doctype: article
+:lang: en
+:listing-caption: Listing
+:source-highlighter: coderay
+:icons: font
+// tag::properties[]
+:latest_version: 1.11.0
+:groupId: org.neo4j
+:artifactIdCore: neo4j-http
+:branch: main
+// end::properties[]
+
+[abstract]
+--
+Neo4j-HTTP provides an HTTP API for Neo4j that runs externally to the core product and uses the https://github.com/neo4j/neo4j-java-driver[Neo4j Java Driver] exclusively for communicating with a database system.
+--
+
+== Main areas of work
+
+Those are open topics:
+
+- Create authenticator based on driver (when same password in basic auth as driver users, use that driver, otherwise create new instance and try to get a connection)
+- Provide driver caching
+- Per driver instance bookmark management
+- Guestimator
+- Use Jackson proper for formats
