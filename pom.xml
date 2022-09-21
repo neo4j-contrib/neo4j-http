@@ -1,0 +1,540 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright 2022 the original author or authors.
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+         https://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>org.neo4j</groupId>
+	<artifactId>neo4j-http-parent</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<packaging>pom</packaging>
+
+	<name>Neo4j-HTTP (Parent)</name>
+	<description>PoC for an external HTTP API using Bolt.</description>
+
+	<inceptionYear>2022</inceptionYear>
+
+	<organization>
+		<name>Neo4j, Neo4j Sweden AB</name>
+		<url>https://neo4j.com</url>
+	</organization>
+
+	<licenses>
+		<license>
+			<name>The Apache Software License, Version 2.0</name>
+			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
+	<developers>
+		<developer>
+			<id>gmeier</id>
+			<name>Gerrit Meier</name>
+			<email>gerrit.meier at neo4j.com</email>
+			<organization>Neo Technology</organization>
+			<organizationUrl>https://neo4j.com</organizationUrl>
+			<roles>
+				<role>Developer</role>
+			</roles>
+			<timezone>+1</timezone>
+		</developer>
+		<developer>
+			<id>msimons</id>
+			<name>Michael Simons</name>
+			<email>michael.simons at neo4j.com</email>
+			<organization>Neo Technology</organization>
+			<organizationUrl>https://neo4j.com</organizationUrl>
+			<roles>
+				<role>Project Lead</role>
+			</roles>
+			<timezone>+1</timezone>
+		</developer>
+	</developers>
+
+	<modules>
+		<!-- Don't change build order -->
+		<module>neo4j-impersonated-auth</module>
+		<module>neo4j-http</module>
+	</modules>
+
+	<scm>
+		<connection>scm:git:git@github.com:neo4j-contrib/neo4j-http.git</connection>
+		<developerConnection>scm:git:git@github.com:neo4j-contrib/neo4j-http.git</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/neo4j-contrib/neo4j-http</url>
+	</scm>
+
+	<properties>
+		<asciidoctor-maven-plugin.version>2.2.2</asciidoctor-maven-plugin.version>
+		<asciidoctorj-diagram.version>2.2.3</asciidoctorj-diagram.version>
+		<asciidoctorj.version>2.5.5</asciidoctorj.version>
+		<checkstyle.version>10.3.3</checkstyle.version>
+		<java.version>17</java.version>
+		<license-maven-plugin.version>4.2.rc2</license-maven-plugin.version>
+		<maven-assembly-plugin.version>3.4.2</maven-assembly-plugin.version>
+		<maven-checkstyle-plugin.version>3.2.0</maven-checkstyle-plugin.version>
+		<maven-clean-plugin.version>3.2.0</maven-clean-plugin.version>
+		<maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
+		<maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
+		<maven-dependency-plugin.version>3.3.0</maven-dependency-plugin.version>
+		<maven-deploy-plugin.version>3.0.0</maven-deploy-plugin.version>
+		<maven-enforcer-plugin.version>3.0.0-M3</maven-enforcer-plugin.version>
+		<maven-enforcer-plugin.version>3.0.0-M3</maven-enforcer-plugin.version>
+		<maven-failsafe-plugin.version>2.22.2</maven-failsafe-plugin.version>
+		<maven-install-plugin.version>3.0.1</maven-install-plugin.version>
+		<maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
+		<maven-javadoc-plugin.version>3.4.1</maven-javadoc-plugin.version>
+		<maven-resources-plugin.version>3.3.0</maven-resources-plugin.version>
+		<maven-shade-plugin.version>3.2.4</maven-shade-plugin.version>
+		<maven-source-plugin.version>3.2.1</maven-source-plugin.version>
+		<maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
+		<maven.compiler.parameters>true</maven.compiler.parameters>
+		<maven.compiler.release>${java.version}</maven.compiler.release>
+		<maven.version>3.8.6</maven.version>
+		<!-- Different name than the one managed by boot to proper manage it centrally and be able to override it -->
+		<neo4j-driver.version>5.1.0</neo4j-driver.version>
+		<neo4j.version>4.4.12</neo4j.version>
+		<project.build.docs>${project.build.directory}/docs</project.build.docs>
+		<project.build.docs.branch>main</project.build.docs.branch>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<sortpom-maven-plugin.version>3.2.0</sortpom-maven-plugin.version>
+		<spring-boot.version>2.7.4</spring-boot.version>
+		<testcontainers.version>1.17.5</testcontainers.version>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.testcontainers</groupId>
+				<artifactId>junit-jupiter</artifactId>
+				<version>${testcontainers.version}</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.testcontainers</groupId>
+				<artifactId>neo4j</artifactId>
+				<version>${testcontainers.version}</version>
+				<scope>test</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-resources-plugin</artifactId>
+					<version>${maven-resources-plugin.version}</version>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-clean-plugin</artifactId>
+					<version>${maven-clean-plugin.version}</version>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<version>${maven-compiler-plugin.version}</version>
+					<configuration combine.self="append">
+						<forceJavacCompilerUse>true</forceJavacCompilerUse>
+						<showWarnings>true</showWarnings>
+						<compilerArgs>
+							<arg>-Xlint:all,-options,-path,-processing</arg>
+							<arg>-Werror</arg>
+							<arg>-parameters</arg>
+						</compilerArgs>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-assembly-plugin</artifactId>
+					<version>${maven-assembly-plugin.version}</version>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-install-plugin</artifactId>
+					<version>${maven-install-plugin.version}</version>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-deploy-plugin</artifactId>
+					<version>${maven-deploy-plugin.version}</version>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-javadoc-plugin</artifactId>
+					<version>${maven-javadoc-plugin.version}</version>
+					<configuration>
+						<quiet>true</quiet>
+						<detectOfflineLinks>false</detectOfflineLinks>
+						<detectJavaApiLink>true</detectJavaApiLink>
+						<release>${java.version}</release>
+						<tags>
+							<tag>
+								<name>soundtrack</name>
+								<placement>a</placement>
+								<head>Soundtrack</head>
+							</tag>
+						</tags>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-jar-plugin</artifactId>
+					<version>${maven-jar-plugin.version}</version>
+				</plugin>
+				<plugin>
+					<artifactId>maven-checkstyle-plugin</artifactId>
+					<version>${maven-checkstyle-plugin.version}</version>
+					<configuration>
+						<configLocation>etc/checkstyle/config.xml</configLocation>
+						<suppressionsLocation>etc/checkstyle/suppressions.xml</suppressionsLocation>
+						<headerLocation>etc/checkstyle/java-header.txt</headerLocation>
+						<inputEncoding>${project.build.sourceEncoding}</inputEncoding>
+						<consoleOutput>true</consoleOutput>
+						<failsOnError>true</failsOnError>
+						<includeTestSourceDirectory>true</includeTestSourceDirectory>
+						<sourceDirectories>
+							<sourceDirectory>${project.build.sourceDirectory}</sourceDirectory>
+						</sourceDirectories>
+					</configuration>
+					<dependencies>
+						<dependency>
+							<groupId>com.puppycrawl.tools</groupId>
+							<artifactId>checkstyle</artifactId>
+							<version>${checkstyle.version}</version>
+						</dependency>
+					</dependencies>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<version>${maven-surefire-plugin.version}</version>
+				</plugin>
+				<plugin>
+					<groupId>com.github.ekryd.sortpom</groupId>
+					<artifactId>sortpom-maven-plugin</artifactId>
+					<version>${sortpom-maven-plugin.version}</version>
+					<configuration>
+						<encoding>${project.build.sourceEncoding}</encoding>
+						<keepBlankLines>true</keepBlankLines>
+						<nrOfIndentSpace>-1</nrOfIndentSpace>
+						<sortProperties>true</sortProperties>
+						<sortDependencies>scope,groupId,artifactId</sortDependencies>
+						<createBackupFile>false</createBackupFile>
+						<expandEmptyElements>false</expandEmptyElements>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-maven-plugin</artifactId>
+					<version>${spring-boot.version}</version>
+					<configuration>
+						<skip>true</skip>
+					</configuration>
+				</plugin>
+			</plugins>
+
+		</pluginManagement>
+
+		<plugins>
+			<plugin>
+				<groupId>com.mycila</groupId>
+				<artifactId>license-maven-plugin</artifactId>
+				<version>${license-maven-plugin.version}</version>
+				<configuration>
+					<header>etc/license.tpl</header>
+					<strictCheck>true</strictCheck>
+					<mapping>
+						<factories>SCRIPT_STYLE</factories>
+					</mapping>
+					<properties>
+						<year>2022</year>
+					</properties>
+					<includes>
+						<include>**</include>
+					</includes>
+					<excludes>
+						<exclude>**/*.adoc</exclude>
+						<exclude>**/*.cypher</exclude>
+						<exclude>**/*.sh</exclude>
+						<exclude>**/*.tpl</exclude>
+						<exclude>**/*.txt</exclude>
+						<exclude>**/*.webm</exclude>
+						<exclude>**/*.yaml</exclude>
+						<exclude>**/org.mockito.plugins.MockMaker</exclude>
+						<exclude>**/package-info.java</exclude>
+					</excludes>
+					<dependencyEnforce>true</dependencyEnforce>
+					<dependencyExceptionMessage>One or more dependencies are licensed under a non-approved license.</dependencyExceptionMessage>
+					<dependencyPolicies>
+						<dependencyPolicy>
+							<type>LICENSE_URL</type>
+							<rule>APPROVE</rule>
+							<value>https://www.apache.org/licenses/LICENSE-2.0</value>
+						</dependencyPolicy>
+						<dependencyPolicy>
+							<type>LICENSE_NAME</type>
+							<rule>APPROVE</rule>
+							<value>Apache License, Version 2</value>
+						</dependencyPolicy>
+						<dependencyPolicy>
+							<type>LICENSE_NAME</type>
+							<rule>APPROVE</rule>
+							<value>Apache License, Version 2.0</value>
+						</dependencyPolicy>
+						<dependencyPolicy>
+							<type>LICENSE_NAME</type>
+							<rule>APPROVE</rule>
+							<value>The Apache Software License, Version 2.0</value>
+						</dependencyPolicy>
+						<dependencyPolicy>
+							<type>LICENSE_NAME</type>
+							<rule>APPROVE</rule>
+							<value>The Apache Software License, version 2.0</value>
+						</dependencyPolicy>
+						<dependencyPolicy>
+							<type>LICENSE_NAME</type>
+							<rule>APPROVE</rule>
+							<value>The MIT License (MIT)</value>
+						</dependencyPolicy>
+						<dependencyPolicy>
+							<type>LICENSE_NAME</type>
+							<rule>APPROVE</rule>
+							<value>MIT License</value>
+						</dependencyPolicy>
+						<dependencyPolicy>
+							<type>LICENSE_NAME</type>
+							<rule>APPROVE</rule>
+							<value>Universal Permissive License, Version 1.0</value>
+						</dependencyPolicy>
+						<dependencyPolicy>
+							<type>LICENSE_NAME</type>
+							<rule>APPROVE</rule>
+							<value>BSD 2-Clause License</value>
+						</dependencyPolicy>
+						<dependencyPolicy>
+							<!-- The issue about the license of the parser is still pending internally… It should be ASL v2, but still defaults to GNU v3 -->
+							<type>ARTIFACT_PATTERN</type>
+							<rule>APPROVE</rule>
+							<value>org.neo4j:neo4j-cypher-javacc-parser:jar:${neo4j.version}</value>
+						</dependencyPolicy>
+					</dependencyPolicies>
+				</configuration>
+				<executions>
+					<execution>
+						<id>validate</id>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<phase>validate</phase>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>com.github.ekryd.sortpom</groupId>
+				<artifactId>sortpom-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>sort</goal>
+						</goals>
+						<phase>verify</phase>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<version>${maven-enforcer-plugin.version}</version>
+				<executions>
+					<execution>
+						<id>enforce</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<phase>validate</phase>
+						<configuration>
+							<rules>
+								<requireJavaVersion>
+									<version>${java.version}</version>
+								</requireJavaVersion>
+								<DependencyConvergence/>
+								<requireMavenVersion>
+									<version>${maven.version}</version>
+								</requireMavenVersion>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>validate</id>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<phase>validate</phase>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<argLine>-Xverify:all</argLine>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<version>${maven-failsafe-plugin.version}</version>
+				<configuration>
+					<argLine>-Xverify:all</argLine>
+					<systemPropertyVariables>
+						<neo4j-http.default-neo4j-image>neo4j:${neo4j.version}-enterprise</neo4j-http.default-neo4j-image>
+						<neo4j-http.plugins.impersonated-auth.artifact>${project.basedir}/../neo4j-impersonated-auth/target/neo4j-impersonated-auth-${project.version}.jar</neo4j-http.plugins.impersonated-auth.artifact>
+					</systemPropertyVariables>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>integration-test</goal>
+							<goal>verify</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>${maven-jar-plugin.version}</version>
+				<configuration>
+					<archive>
+						<manifest>
+							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+							<addBuildEnvironmentEntries>true</addBuildEnvironmentEntries>
+						</manifest>
+					</archive>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>${maven-source-plugin.version}</version>
+				<executions>
+					<execution>
+						<id>attach-sources</id>
+						<goals>
+							<goal>jar-no-fork</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>attach-javadocs</id>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.asciidoctor</groupId>
+				<artifactId>asciidoctor-maven-plugin</artifactId>
+				<version>${asciidoctor-maven-plugin.version}</version>
+				<inherited>false</inherited>
+				<configuration>
+					<backend>html</backend>
+					<doctype>book</doctype>
+					<sourceDirectory>${basedir}/docs</sourceDirectory>
+					<sourceDocumentName>index.adoc</sourceDocumentName>
+					<attributes>
+						<icons>font</icons>
+						<toc>left</toc>
+						<setanchors/>
+						<idprefix/>
+						<idseparator/>
+						<imagesdir>img</imagesdir>
+						<neo4j-java-driver-version>${neo4j-java-driver.version}</neo4j-java-driver-version>
+						<neo4j-migrations.version>${project.version}</neo4j-migrations.version>
+						<source-highlighter>coderay</source-highlighter>
+						<branch>${project.build.docs.branch}</branch>
+						<latest_version>${project.version}</latest_version>
+					</attributes>
+					<requires>
+						<require>asciidoctor-diagram</require>
+					</requires>
+					<outputDirectory>${project.build.docs}</outputDirectory>
+				</configuration>
+				<dependencies>
+					<dependency>
+						<groupId>org.asciidoctor</groupId>
+						<artifactId>asciidoctorj-diagram</artifactId>
+						<version>${asciidoctorj-diagram.version}</version>
+					</dependency>
+				</dependencies>
+				<executions>
+					<execution>
+						<id>generate-docs</id>
+						<goals>
+							<goal>process-asciidoc</goal>
+						</goals>
+						<phase>prepare-package</phase>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+	<profiles>
+		<profile>
+			<id>fast</id>
+			<activation>
+				<property>
+					<name>fast</name>
+				</property>
+			</activation>
+			<properties>
+				<asciidoctor.skip>true</asciidoctor.skip>
+				<checkstyle.skip>true</checkstyle.skip>
+				<docker.skip>true</docker.skip>
+				<invoker.skip>true</invoker.skip>
+				<jacoco.skip>true</jacoco.skip>
+				<jqassistant.skip>true</jqassistant.skip>
+				<license.skip>true</license.skip>
+				<maven.javadoc.skip>true</maven.javadoc.skip>
+				<pmd.skip>true</pmd.skip>
+				<skipITs>true</skipITs>
+				<skipNativeBuild>true</skipNativeBuild>
+				<skipTests>true</skipTests>
+			</properties>
+		</profile>
+	</profiles>
+</project>
