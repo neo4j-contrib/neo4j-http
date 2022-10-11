@@ -13,25 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.http;
-
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.cache.annotation.EnableCaching;
+package org.neo4j.http.db;
 
 /**
- * Main entry point.
+ * The Neo4j adapter requires state, mainly for caching access modes of queries. This base class provides a common implementation.
+ *
  * @author Michael J. Simons
  */
-@SpringBootApplication
-@EnableCaching
-public class Application {
-
-	/**
-	 * @param args Command line arguments provided to the application.
-	 */
-	public static void main(String[] args) {
-		SpringApplication.run(Application.class, args);
-	}
-
+non-sealed abstract class AbstractNeo4jAdapter implements Neo4jAdapter {
 }

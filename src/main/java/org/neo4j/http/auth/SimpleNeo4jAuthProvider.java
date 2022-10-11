@@ -18,6 +18,8 @@ package org.neo4j.http.auth;
 import java.util.List;
 import java.util.Objects;
 
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.SessionConfig;
 import org.springframework.boot.autoconfigure.neo4j.Neo4jProperties;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -27,7 +29,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Component;
 
 /**
- * Checks a given authentication against the known properties. If this is not successfull, it tries to open and validate
+ * Checks a given authentication against the known properties. If this is not successful, it tries to open and validate
  * a new driver instance.
  *
  * @author Michael J. Simons

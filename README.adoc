@@ -26,3 +26,4 @@ Those are open topics:
 - Per driver instance bookmark management
 - Guestimator
 - Use Jackson proper for formats
+- Provide an option to run this as a Neo4j plugin similar to GDS Arrows (https://github.com/neo-technology/graph-analytics/blob/master/private/arrow/src/main/java/com/neo4j/gds/arrow/server/GdsFlightServerExtension.java)

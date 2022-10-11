@@ -13,25 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.http;
+package org.neo4j.http.db;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.cache.annotation.EnableCaching;
+import org.neo4j.driver.Driver;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Primary;
+import org.springframework.stereotype.Service;
 
 /**
- * Main entry point.
  * @author Michael J. Simons
  */
-@SpringBootApplication
-@EnableCaching
-public class Application {
+@Service
+@Primary
+class BoltAdapterImpl extends AbstractNeo4jAdapter {
 
-	/**
-	 * @param args Command line arguments provided to the application.
-	 */
-	public static void main(String[] args) {
-		SpringApplication.run(Application.class, args);
+	private final Driver driver;
+
+	public BoltAdapterImpl(Driver driver) {
+		this.driver = driver;
 	}
 
+	@Cacheable("queryTargets")
+	@Override
+	public Target getQueryTarget(String query) {
+		System.out.println(">>> " + query);
+		return Target.UNDECIDED;
+	}
 }
