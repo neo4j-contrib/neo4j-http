@@ -6,7 +6,6 @@ Michael Simons <michael.simons@neo4j.com>
 :source-highlighter: coderay
 :icons: font
 // tag::properties[]
-:latest_version: 1.11.0
 :groupId: org.neo4j
 :artifactIdCore: neo4j-http
 :branch: main
@@ -27,3 +26,4 @@ Those are open topics:
 - Guestimator
 - Use Jackson proper for formats
 - Provide an option to run this as a Neo4j plugin similar to GDS Arrows (https://github.com/neo-technology/graph-analytics/blob/master/private/arrow/src/main/java/com/neo4j/gds/arrow/server/GdsFlightServerExtension.java)
+- Bookmarkmanager (similar like SDN / Migrations or see if 5.x stuff is usable)
