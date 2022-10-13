@@ -78,10 +78,7 @@ enum CypherOperator {
 	NodeIndexEndsWithScan,
 	NodeIndexScan,
 	NodeIndexSeek,
-	NodeIndexSeekByRange,
-
-
-	;
+	NodeIndexSeekByRange;
 
 	private final boolean updating;
 

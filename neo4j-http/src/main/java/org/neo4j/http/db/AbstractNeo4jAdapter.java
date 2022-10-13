@@ -15,17 +15,10 @@
  */
 package org.neo4j.http.db;
 
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-
 /**
  * The Neo4j adapter requires state, mainly for caching access modes of queries. This base class provides a common implementation.
  *
  * @author Michael J. Simons
  */
 non-sealed abstract class AbstractNeo4jAdapter implements Neo4jAdapter {
-
-	@Override
-	public boolean supports(Class<?> authentication) {
-		return authentication.equals(UsernamePasswordAuthenticationToken.class);
-	}
 }

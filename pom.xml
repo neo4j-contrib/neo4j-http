@@ -19,18 +19,12 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<parent>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.7.3</version>
-		<relativePath/>
-	</parent>
-
 	<groupId>org.neo4j</groupId>
-	<artifactId>neo4j-http</artifactId>
+	<artifactId>neo4j-http-parent</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
+	<packaging>pom</packaging>
 
-	<name>Neo4j-HTTP</name>
+	<name>Neo4j-HTTP (Parent)</name>
 	<description>PoC for an external HTTP API using Bolt.</description>
 
 	<inceptionYear>2022</inceptionYear>
@@ -73,6 +67,11 @@
 		</developer>
 	</developers>
 
+	<modules>
+		<module>neo4j-http</module>
+		<module>neo4j-impersonated-auth</module>
+	</modules>
+
 	<scm>
 		<connection>scm:git:git@github.com:neo4j-contrib/neo4j-http.git</connection>
 		<developerConnection>scm:git:git@github.com:neo4j-contrib/neo4j-http.git</developerConnection>
@@ -88,11 +87,19 @@
 		<java.version>17</java.version>
 		<license-maven-plugin.version>4.2.rc2</license-maven-plugin.version>
 		<maven-checkstyle-plugin.version>3.2.0</maven-checkstyle-plugin.version>
+		<maven-clean-plugin.version>3.2.0</maven-clean-plugin.version>
+		<maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
 		<maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
 		<maven-dependency-plugin.version>3.3.0</maven-dependency-plugin.version>
+		<maven-deploy-plugin.version>3.0.0</maven-deploy-plugin.version>
 		<maven-enforcer-plugin.version>3.0.0-M3</maven-enforcer-plugin.version>
+		<maven-enforcer-plugin.version>3.0.0-M3</maven-enforcer-plugin.version>
+		<maven-failsafe-plugin.version>2.22.2</maven-failsafe-plugin.version>
+		<maven-install-plugin.version>3.0.1</maven-install-plugin.version>
 		<maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
 		<maven-javadoc-plugin.version>3.4.1</maven-javadoc-plugin.version>
+		<maven-resources-plugin.version>3.3.0</maven-resources-plugin.version>
+		<maven-source-plugin.version>3.2.1</maven-source-plugin.version>
 		<maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
 		<maven.compiler.parameters>true</maven.compiler.parameters>
 		<maven.compiler.release>${java.version}</maven.compiler.release>
@@ -104,49 +111,8 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<sortpom-maven-plugin.version>3.2.0</sortpom-maven-plugin.version>
+		<spring-boot.version>2.7.4</spring-boot.version>
 	</properties>
-
-	<dependencies>
-		<dependency>
-			<groupId>org.neo4j.driver</groupId>
-			<artifactId>neo4j-java-driver</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-security</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-cache</artifactId>
-		</dependency>
-
-
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-devtools</artifactId>
-			<scope>runtime</scope>
-			<optional>true</optional>
-		</dependency>
-
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.security</groupId>
-			<artifactId>spring-security-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-	</dependencies>
 
 	<build>
 		<pluginManagement>
@@ -220,7 +186,7 @@
 						<configLocation>etc/checkstyle/config.xml</configLocation>
 						<suppressionsLocation>etc/checkstyle/suppressions.xml</suppressionsLocation>
 						<headerLocation>etc/checkstyle/java-header.txt</headerLocation>
-						<encoding>${project.build.sourceEncoding}</encoding>
+						<inputEncoding>${project.build.sourceEncoding}</inputEncoding>
 						<consoleOutput>true</consoleOutput>
 						<failsOnError>true</failsOnError>
 						<includeTestSourceDirectory>true</includeTestSourceDirectory>
@@ -259,10 +225,6 @@
 		</pluginManagement>
 
 		<plugins>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-			</plugin>
 			<plugin>
 				<groupId>com.mycila</groupId>
 				<artifactId>license-maven-plugin</artifactId>
