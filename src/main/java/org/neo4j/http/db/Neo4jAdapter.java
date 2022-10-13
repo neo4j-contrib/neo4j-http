@@ -15,6 +15,8 @@
  */
 package org.neo4j.http.db;
 
+import org.springframework.security.core.Authentication;
+
 /**
  * Access to Neo4j via an adapter. In most Spring applications I'm a fan of _not_ using service interfaces but for this
  * project this adapter is meaningful: Its primary implementation will be based on the Driver and thus the Bolt protocol.
@@ -51,5 +53,5 @@ public sealed interface Neo4jAdapter permits AbstractNeo4jAdapter {
 	 * @return A target for the query
 	 * @throws IllegalArgumentException if the query can not be dealt with
 	 */
-	Target getQueryTarget(String query);
+	Target getQueryTarget(Authentication authentication, String query);
 }

@@ -18,6 +18,7 @@ package org.neo4j.http.db;
 import org.neo4j.driver.Driver;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Primary;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 /**
@@ -29,14 +30,13 @@ class BoltAdapterImpl extends AbstractNeo4jAdapter {
 
 	private final Driver driver;
 
-	public BoltAdapterImpl(Driver driver) {
+	BoltAdapterImpl(Driver driver) {
 		this.driver = driver;
 	}
 
 	@Cacheable("queryTargets")
 	@Override
-	public Target getQueryTarget(String query) {
-		System.out.println(">>> " + query);
+	public Target getQueryTarget(Authentication authentication, String query) {
 		return Target.UNDECIDED;
 	}
 }

@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Objects;
 
 import org.neo4j.driver.Driver;
-import org.neo4j.driver.SessionConfig;
 import org.springframework.boot.autoconfigure.neo4j.Neo4jProperties;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -39,8 +38,11 @@ final class SimpleNeo4jAuthProvider implements AuthenticationProvider {
 
 	private final Neo4jProperties neo4jProperties;
 
-	SimpleNeo4jAuthProvider(Neo4jProperties neo4jProperties) {
+	private final Driver driver;
+
+	SimpleNeo4jAuthProvider(Neo4jProperties neo4jProperties, Driver driver) {
 		this.neo4jProperties = neo4jProperties;
+		this.driver = driver;
 	}
 
 	@Override
@@ -48,17 +50,20 @@ final class SimpleNeo4jAuthProvider implements AuthenticationProvider {
 
 		var name = authentication.getName();
 		var password = authentication.getCredentials().toString();
-
 		var serverPassword = neo4jProperties.getAuthentication().getPassword();
+
 		if (serverPassword != null && Objects.equals(neo4jProperties.getAuthentication().getUsername(),
 			authentication.getName()) && Objects.equals(serverPassword, password)) {
 			return new UsernamePasswordAuthenticationToken(name, password, List.of());
 		}
 
+		// check driver.
+
 		throw new BadCredentialsException("Could not authenticate" + name);
 	}
 
-	@Override public boolean supports(Class<?> authentication) {
+	@Override
+	public boolean supports(Class<?> authentication) {
 		return authentication.equals(UsernamePasswordAuthenticationToken.class);
 	}
 }
