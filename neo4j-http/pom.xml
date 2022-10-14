@@ -30,13 +30,17 @@
 	<name>Neo4j-HTTP</name>
 	<description>PoC for an external HTTP API using Bolt.</description>
 
+	<properties>
+		<spring-boot.version>2.7.4</spring-boot.version>
+	</properties>
+
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
 				<!-- Import dependency management from Spring Boot -->
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-dependencies</artifactId>
-				<version>2.7.4</version>
+				<version>${spring-boot.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
