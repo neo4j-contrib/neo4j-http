@@ -42,8 +42,8 @@ public class Endpoint {
 		return neo4j.getQueryTarget(authentication, query).name();
 	}
 
-	@GetMapping
-	String f() {
-		return "wth?";
+	@GetMapping("/")
+	public String index() {
+		return "index";
 	}
 }

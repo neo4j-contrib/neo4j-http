@@ -54,4 +54,12 @@ public sealed interface Neo4jAdapter permits AbstractNeo4jAdapter {
 	 * @throws IllegalArgumentException if the query can not be dealt with
 	 */
 	Target getQueryTarget(Authentication authentication, String query);
+
+	/**
+	 * A helper method for drivers that don't allow to use any authentication for impersonation
+	 *
+	 * @param authentication The authentication to use
+	 * @return {@literal true} if the given {@link Authentication} can be safely used as impersonated user
+	 */
+	boolean canImpersonate(Authentication authentication);
 }

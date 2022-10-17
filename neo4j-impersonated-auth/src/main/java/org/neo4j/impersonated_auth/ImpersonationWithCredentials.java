@@ -30,21 +30,43 @@ import org.neo4j.procedure.UserFunction;
  *
  * @author Michael J. Simons
  */
-public class Imposter {
+public class ImpersonationWithCredentials {
 
+	/**
+	 * Needs to be public because Neo4j and required to access an instance of {@link AuthManager}.
+	 */
 	@Context
 	public DependencyResolver dependencyResolver;
 
-	@UserFunction("imposter.authenticate")
-	public boolean authenticate(@Name("username") String username, @Name("password") String password) {
+	/**
+	 * See {@link AuthenticationResult#SUCCESS}.
+	 */
+	public static final String SUCCESS = "SUCCESS";
+
+	/**
+	 * See {@link AuthenticationResult#FAILURE}.
+	 */
+	public static final String FAILURE = "FAILURE";
+
+	/**
+	 * Authenticates based on username and password. The returned value will either be {@link #SUCCESS} or {@link #FAILURE},
+	 * modelled after the enum {@link AuthenticationResult}, but I don't want to depend on that directly.
+	 *
+	 * @param username The username to authenticate
+	 * @param password The password to use
+	 * @return Status about authentication
+	 */
+	@UserFunction("impersonation.authenticate")
+	public String authenticate(@Name("username") String username, @Name("password") byte[] password) {
 
 		var authManager = getAuthManager();
 		try {
 			var authToken = AuthToken.newBasicAuthToken(username, password);
 			var ctx = authManager.login(authToken, ClientConnectionInfo.EMBEDDED_CONNECTION);
-			return ctx.subject().getAuthenticationResult() == AuthenticationResult.SUCCESS;
+
+			return ctx.subject().getAuthenticationResult() == AuthenticationResult.SUCCESS ? SUCCESS : FAILURE;
 		} catch (InvalidAuthTokenException e) {
-			return false;
+			return FAILURE;
 		}
 	}
 

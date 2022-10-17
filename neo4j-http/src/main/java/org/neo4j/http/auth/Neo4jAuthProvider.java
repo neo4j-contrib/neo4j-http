@@ -18,7 +18,7 @@ package org.neo4j.http.auth;
 import java.util.List;
 import java.util.Objects;
 
-import org.neo4j.driver.Driver;
+import org.neo4j.http.db.Neo4jAdapter;
 import org.springframework.boot.autoconfigure.neo4j.Neo4jProperties;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -28,21 +28,22 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Component;
 
 /**
- * Checks a given authentication against the known properties. If this is not successful, it tries to open and validate
- * a new driver instance.
+ * Checks a given authentication against the known properties. If this is not successful, it tries to use the configured
+ * adapter.
  *
  * @author Michael J. Simons
  */
 @Component
-final class SimpleNeo4jAuthProvider implements AuthenticationProvider {
+public final class Neo4jAuthProvider implements AuthenticationProvider {
 
 	private final Neo4jProperties neo4jProperties;
 
-	private final Driver driver;
+	private final Neo4jAdapter neo4j;
 
-	SimpleNeo4jAuthProvider(Neo4jProperties neo4jProperties, Driver driver) {
+	Neo4jAuthProvider(Neo4jProperties neo4jProperties, Neo4jAdapter neo4j) {
+
 		this.neo4jProperties = neo4jProperties;
-		this.driver = driver;
+		this.neo4j = neo4j;
 	}
 
 	@Override
@@ -50,14 +51,17 @@ final class SimpleNeo4jAuthProvider implements AuthenticationProvider {
 
 		var name = authentication.getName();
 		var password = authentication.getCredentials().toString();
+
+		var serverUsername = neo4jProperties.getAuthentication().getUsername();
 		var serverPassword = neo4jProperties.getAuthentication().getPassword();
 
-		if (serverPassword != null && Objects.equals(neo4jProperties.getAuthentication().getUsername(),
-			authentication.getName()) && Objects.equals(serverPassword, password)) {
+		if (serverPassword != null && Objects.equals(serverUsername, name) && Objects.equals(serverPassword, password)) {
 			return new UsernamePasswordAuthenticationToken(name, password, List.of());
 		}
 
-		// check driver.
+		if (neo4j.canImpersonate(authentication)) {
+			return new UsernamePasswordAuthenticationToken(name, password, List.of());
+		}
 
 		throw new BadCredentialsException("Could not authenticate" + name);
 	}

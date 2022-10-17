@@ -28,8 +28,14 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
 
+	/**
+	 * @param http Existing chain
+	 * @return A chain that requires all requests to be authenticated and disables CSRF
+	 * @throws Exception any exception that the builder might throw
+	 */
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
 		return http
 			.authorizeRequests().anyRequest().authenticated().and()
 			.httpBasic().and()

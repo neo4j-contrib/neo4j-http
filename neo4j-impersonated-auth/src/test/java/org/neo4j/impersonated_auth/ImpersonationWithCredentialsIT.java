@@ -15,7 +15,9 @@
  */
 package org.neo4j.impersonated_auth;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.Map;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
@@ -33,14 +35,15 @@ import org.testcontainers.utility.MountableFile;
 
 @Testcontainers(disabledWithoutDocker = true)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class ImposterIT {
+class ImpersonationWithCredentialsIT {
 
-	// TODO use sys variable for image name like in migrations
+	static final String DEFAULT_NEO4J_IMAGE = System.getProperty("neo4j-http.default-neo4j-image");
+
 	@SuppressWarnings("resource")
-	final Neo4jContainer<?> neo4j = new Neo4jContainer<>("neo4j:4.4-enterprise")
+	final Neo4jContainer<?> neo4j = new Neo4jContainer<>(DEFAULT_NEO4J_IMAGE)
 		.withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
-		.withPlugins(MountableFile.forHostPath(Path.of(System.getProperty("artifact"))))
-		.withNeo4jConfig("dbms.security.procedures.unrestricted", "imposter.authenticate")
+		.withPlugins(MountableFile.forHostPath(Path.of(System.getProperty("neo4j-http.plugins.impersonated-auth.artifact"))))
+		.withNeo4jConfig("dbms.security.procedures.unrestricted", "impersonation.authenticate")
 		.withReuse(true);
 
 	Driver driver;
@@ -64,7 +67,7 @@ class ImposterIT {
 	@Test
 	public void shouldReturnTrueOnValidUser() {
 		try (var session = driver.session()) {
-			var result = session.run("RETURN imposter.authenticate('jake', 'xyz') AS result").single().get(0).asBoolean();
+			var result = session.run("RETURN impersonation.authenticate('jake', $1) = 'SUCCESS' AS result", Map.of("1", "xyz".getBytes(StandardCharsets.UTF_8))).single().get(0).asBoolean();
 			Assertions.assertTrue(result);
 		}
 	}
@@ -72,7 +75,7 @@ class ImposterIT {
 	@Test
 	public void shouldReturnFalseOnInvalidUser() {
 		try (var session = driver.session()) {
-			var result = session.run("RETURN imposter.authenticate('jake', 'foobar') AS result").single().get(0).asBoolean();
+			var result = session.run("RETURN impersonation.authenticate('jake', $1) = 'SUCCESS' AS result", Map.of("1", "foobar".getBytes(StandardCharsets.UTF_8))).single().get(0).asBoolean();
 			Assertions.assertFalse(result);
 		}
 	}
