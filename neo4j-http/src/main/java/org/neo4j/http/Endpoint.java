@@ -16,7 +16,7 @@
 package org.neo4j.http;
 
 import org.neo4j.http.db.Neo4jAdapter;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -38,8 +38,9 @@ public class Endpoint {
 
 	// curl -v  -u neo4j:secret -H "Content-type: application/json" -X POST -d "MATCH (n) RETURN n" localhost:8080/
 	@PostMapping
-	String wip(Authentication authentication, @RequestBody String query) {
-		return neo4j.getQueryTarget(authentication, query).name();
+	String wip(@AuthenticationPrincipal Object authentication, @RequestBody String query) {
+
+		return neo4j.getQueryTarget(null, query).name() + ": " + authentication;
 	}
 
 	@GetMapping("/")

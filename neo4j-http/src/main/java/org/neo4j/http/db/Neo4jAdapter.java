@@ -15,6 +15,8 @@
  */
 package org.neo4j.http.db;
 
+import java.util.logging.Logger;
+
 import org.springframework.security.core.Authentication;
 
 /**
@@ -26,6 +28,8 @@ import org.springframework.security.core.Authentication;
  * @author Michael J. Simons
  */
 public sealed interface Neo4jAdapter permits AbstractNeo4jAdapter {
+
+	Logger LOGGER = Logger.getLogger(Neo4jAdapter.class.getName());
 
 	/**
 	 * Basically a copy of the drivers access mode. As there is ongoing debate to rename this we stay independent.
@@ -49,17 +53,19 @@ public sealed interface Neo4jAdapter permits AbstractNeo4jAdapter {
 	/**
 	 * The target against a query should be executed.
 	 *
-	 * @param query The string value of a query to be executed
+	 * @param principal The authenticated principal for whom the query is evaluated
+	 * @param query     The string value of a query to be executed
 	 * @return A target for the query
 	 * @throws IllegalArgumentException if the query can not be dealt with
 	 */
-	Target getQueryTarget(Authentication authentication, String query);
+	Target getQueryTarget(Neo4jPrincipal principal, String query);
 
 	/**
 	 * A helper method for drivers that don't allow to use any authentication for impersonation
 	 *
-	 * @param authentication The authentication to use
+	 * @param principal   The principal to be authenticated
+	 * @param credentials The password to try to authenticate with
 	 * @return {@literal true} if the given {@link Authentication} can be safely used as impersonated user
 	 */
-	boolean canImpersonate(Authentication authentication);
+	boolean canImpersonate(Neo4jPrincipal principal, Object credentials);
 }
