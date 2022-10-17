@@ -15,7 +15,15 @@
  */
 package org.neo4j.http.db;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.Consumer;
+
+import org.neo4j.driver.AccessMode;
 import org.neo4j.driver.Driver;
+import org.neo4j.driver.SessionConfig;
+import org.neo4j.driver.summary.Plan;
+import org.neo4j.driver.summary.ResultSummary;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
@@ -32,6 +40,7 @@ import org.springframework.stereotype.Service;
 @Primary
 class BoltAdapterImpl extends AbstractNeo4jAdapter {
 
+	private static final SessionConfig READ_SESSION_CONFIG = SessionConfig.builder().withDefaultAccessMode(AccessMode.READ).build();
 	private final Driver driver;
 
 	BoltAdapterImpl(Driver driver) {
@@ -41,6 +50,37 @@ class BoltAdapterImpl extends AbstractNeo4jAdapter {
 	@Cacheable("queryTargets")
 	@Override
 	public Target getQueryTarget(Neo4jPrincipal principal, String query) {
-		return Target.UNDECIDED;
+
+		try (var session = driver.session(READ_SESSION_CONFIG)) {
+			var summary = session.run("EXPLAIN " + query).consume();
+			return evaluateOperators(getOperators(summary));
+		}
+	}
+
+	private static Set<CypherOperator> getOperators(ResultSummary summary) {
+		if (!summary.hasPlan()) {
+			return Set.of(CypherOperator.__UNKNOWN__);
+		}
+
+		Set<CypherOperator> operators = new HashSet<>();
+		traversePlan(summary.database().name(), summary.plan(), operators::add);
+		return Set.copyOf(operators);
+	}
+
+	private static void traversePlan(String databaseName, Plan plan, Consumer<CypherOperator> operatorSink) {
+
+		var operator = CypherOperator.__UNKNOWN__;
+		var operatorType = plan.operatorType().substring(0, plan.operatorType().indexOf(databaseName) - 1);
+		try {
+			operator = CypherOperator.valueOf(operatorType);
+		} catch (IllegalArgumentException e) {
+			LOGGER.warning(() -> String.format("An unknown operator was encountered: %s", operatorType));
+		}
+		operatorSink.accept(operator);
+		if (!plan.children().isEmpty()) {
+			for (Plan childPlan : plan.children()) {
+				traversePlan(databaseName, childPlan, operatorSink);
+			}
+		}
 	}
 }

@@ -21,6 +21,10 @@ package org.neo4j.http.db;
  * @author Michael J. Simons
  */
 enum CypherOperator {
+	/**
+	 * Fallback for all the cases in which an unknown operator is encountered. We do assume updates.
+	 */
+	__UNKNOWN__(true),
 	AllNodesScan,
 	Anti,
 	AntiSemiApply,
@@ -78,7 +82,55 @@ enum CypherOperator {
 	NodeIndexEndsWithScan,
 	NodeIndexScan,
 	NodeIndexSeek,
-	NodeIndexSeekByRange;
+	NodeIndexSeekByRange,
+	NodeLeftOuterHashJoin,
+	NodeRightOuterHashJoin,
+	NodeUniqueIndexSeek,
+	NodeUniqueIndexSeekByRange,
+	Optional,
+	OptionalExpand,
+	OrderedAggregation,
+	OrderedDistinct,
+	PartialSort,
+	PartialTop,
+	ProcedureCall(true),
+	ProduceResults,
+	ProjectEndpoints,
+	Projection,
+	RelationshipCountFromCountStore,
+	RemoveLabels(true),
+	RollUpApply,
+	SelectOrAntiSemiApply,
+	SelectOrSemiApply,
+	SemiApply,
+	SetLabels(true),
+	SetNodePropertiesFromMap(true),
+	SetProperty(true),
+	SetRelationshipPropertiesFromMap(true),
+	ShortestPath,
+	ShowConstraints,
+	ShowFunctions,
+	ShowIndexes,
+	ShowProcedures,
+	ShowTransactions,
+	Skip,
+	Sort,
+	TerminateTransactions,
+	Top,
+	TriadicBuild,
+	TriadicFilter,
+	TriadicSelection,
+	UndirectedRelationshipByIdSeek,
+	UndirectedRelationshipIndexContainsScan,
+	UndirectedRelationshipIndexEndsWithScan,
+	UndirectedRelationshipIndexScan,
+	UndirectedRelationshipIndexSeek,
+	UndirectedRelationshipIndexSeekByRange,
+	UndirectedRelationshipTypeScan,
+	Union,
+	Unwind,
+	ValueHashJoin,
+	VarLengthExpand;
 
 	private final boolean updating;
 
@@ -88,5 +140,9 @@ enum CypherOperator {
 
 	CypherOperator(boolean updating) {
 		this.updating = updating;
+	}
+
+	public boolean isUpdating() {
+		return updating;
 	}
 }

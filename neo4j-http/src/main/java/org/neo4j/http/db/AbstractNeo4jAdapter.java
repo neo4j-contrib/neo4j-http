@@ -15,10 +15,25 @@
  */
 package org.neo4j.http.db;
 
+import java.util.Set;
+
 /**
- * The Neo4j adapter requires state, mainly for caching access modes of queries. This base class provides a common implementation.
+ * The default adapter uses Springs declarative caching mechanism and the non-sealed base class allows actual implementations
+ * to break the seal without allowing arbitrary other implementations into the hierachy.
  *
  * @author Michael J. Simons
  */
 non-sealed abstract class AbstractNeo4jAdapter implements Neo4jAdapter {
+
+	/**
+	 * Evaluates the list of given {@link CypherOperator cypher operators} for operators we know as updating operators.
+	 * In case any updating operator is found, we will delegate
+	 *
+	 * @param cypherOperators A set of cypher operators
+	 * @return The target to run a given query against
+	 */
+	final Target evaluateOperators(Set<CypherOperator> cypherOperators) {
+
+		return cypherOperators.stream().anyMatch(CypherOperator::isUpdating) ? Target.WRITERS : Target.READERS;
+	}
 }

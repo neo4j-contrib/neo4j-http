@@ -20,13 +20,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
+import org.neo4j.driver.AccessMode;
 import org.neo4j.driver.Driver;
+import org.neo4j.driver.SessionConfig;
 import org.neo4j.driver.exceptions.ClientException;
 import org.neo4j.http.db.Neo4jPrincipal;
 import org.springframework.boot.autoconfigure.neo4j.Neo4jProperties;
-import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -48,11 +48,10 @@ import org.springframework.stereotype.Component;
  * @author Michael J. Simons
  */
 @Component
-final class BoltAuthenticationProvider implements AuthenticationProvider {
-
-	Logger LOGGER = Logger.getLogger(BoltAuthenticationProvider.class.getName());
+final class BoltAuthenticationProvider implements Neo4jAuthenticationProvider {
 
 	private final Driver boltConnection;
+	private final SessionConfig read_session_config;
 
 	private final PasswordEncoder passwordEncoder;
 
@@ -62,6 +61,8 @@ final class BoltAuthenticationProvider implements AuthenticationProvider {
 	BoltAuthenticationProvider(Neo4jProperties neo4jProperties, Driver boltConnection) {
 
 		this.boltConnection = boltConnection;
+		this.read_session_config = SessionConfig.builder().withDefaultAccessMode(AccessMode.READ).build();
+
 		this.passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
 
 		this.serverUsername = neo4jProperties.getAuthentication().getUsername();
@@ -98,7 +99,7 @@ final class BoltAuthenticationProvider implements AuthenticationProvider {
 	 */
 	boolean canImpersonate(String username, String password) {
 
-		try (var session = boltConnection.session()) {
+		try (var session = boltConnection.session(read_session_config)) {
 			return session.run("RETURN impersonation.authenticate($0, $1) = 'SUCCESS' AS result", Map.of(
 				"0", username,
 				"1", password.getBytes(StandardCharsets.UTF_8))

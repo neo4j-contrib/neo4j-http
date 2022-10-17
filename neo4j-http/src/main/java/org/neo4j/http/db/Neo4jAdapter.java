@@ -15,6 +15,8 @@
  */
 package org.neo4j.http.db;
 
+import java.util.logging.Logger;
+
 /**
  * Access to Neo4j via an adapter. In most Spring applications I'm a fan of _not_ using service interfaces but for this
  * project this adapter is meaningful: Its primary implementation will be based on the Driver and thus the Bolt protocol.
@@ -24,6 +26,11 @@ package org.neo4j.http.db;
  * @author Michael J. Simons
  */
 public sealed interface Neo4jAdapter permits AbstractNeo4jAdapter {
+
+	/**
+	 * Shared logger for all adapter instances.
+	 */
+	Logger LOGGER = Logger.getLogger(Neo4jAdapter.class.getName());
 
 	/**
 	 * Basically a copy of the drivers access mode. As there is ongoing debate to rename this we stay independent.
