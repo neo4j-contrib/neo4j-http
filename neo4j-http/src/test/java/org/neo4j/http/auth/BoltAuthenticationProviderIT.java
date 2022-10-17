@@ -44,7 +44,7 @@ import org.testcontainers.utility.MountableFile;
 @Nested
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers(disabledWithoutDocker = true)
-class Neo4jAuthProviderIT {
+class BoltAuthenticationProviderIT {
 
 	static final String DEFAULT_NEO4J_IMAGE = System.getProperty("neo4j-http.default-neo4j-image");
 

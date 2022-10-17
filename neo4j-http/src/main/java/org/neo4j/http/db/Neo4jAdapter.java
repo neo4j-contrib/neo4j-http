@@ -15,10 +15,6 @@
  */
 package org.neo4j.http.db;
 
-import java.util.logging.Logger;
-
-import org.springframework.security.core.Authentication;
-
 /**
  * Access to Neo4j via an adapter. In most Spring applications I'm a fan of _not_ using service interfaces but for this
  * project this adapter is meaningful: Its primary implementation will be based on the Driver and thus the Bolt protocol.
@@ -28,8 +24,6 @@ import org.springframework.security.core.Authentication;
  * @author Michael J. Simons
  */
 public sealed interface Neo4jAdapter permits AbstractNeo4jAdapter {
-
-	Logger LOGGER = Logger.getLogger(Neo4jAdapter.class.getName());
 
 	/**
 	 * Basically a copy of the drivers access mode. As there is ongoing debate to rename this we stay independent.
@@ -59,13 +53,4 @@ public sealed interface Neo4jAdapter permits AbstractNeo4jAdapter {
 	 * @throws IllegalArgumentException if the query can not be dealt with
 	 */
 	Target getQueryTarget(Neo4jPrincipal principal, String query);
-
-	/**
-	 * A helper method for drivers that don't allow to use any authentication for impersonation
-	 *
-	 * @param principal   The principal to be authenticated
-	 * @param credentials The password to try to authenticate with
-	 * @return {@literal true} if the given {@link Authentication} can be safely used as impersonated user
-	 */
-	boolean canImpersonate(Neo4jPrincipal principal, Object credentials);
 }

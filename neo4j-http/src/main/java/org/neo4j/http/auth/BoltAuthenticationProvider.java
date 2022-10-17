@@ -15,10 +15,15 @@
  */
 package org.neo4j.http.auth;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-import org.neo4j.http.db.Neo4jAdapter;
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.exceptions.ClientException;
 import org.neo4j.http.db.Neo4jPrincipal;
 import org.springframework.boot.autoconfigure.neo4j.Neo4jProperties;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -43,21 +48,24 @@ import org.springframework.stereotype.Component;
  * @author Michael J. Simons
  */
 @Component
-final class Neo4jAuthProvider implements AuthenticationProvider {
+final class BoltAuthenticationProvider implements AuthenticationProvider {
 
-	private final Neo4jAdapter neo4j;
+	Logger LOGGER = Logger.getLogger(BoltAuthenticationProvider.class.getName());
 
-	private final PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
+	private final Driver boltConnection;
+
+	private final PasswordEncoder passwordEncoder;
 
 	private final String serverPassword;
 	private final String serverUsername;
 
-	Neo4jAuthProvider(Neo4jProperties neo4jProperties, Neo4jAdapter neo4j) {
+	BoltAuthenticationProvider(Neo4jProperties neo4jProperties, Driver boltConnection) {
 
-		this.neo4j = neo4j;
+		this.boltConnection = boltConnection;
+		this.passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
 
 		this.serverUsername = neo4jProperties.getAuthentication().getUsername();
-		this.serverPassword = passwordEncoder.encode(neo4jProperties.getAuthentication().getPassword());
+		this.serverPassword = passwordEncoder.encode(Objects.requireNonNull(neo4jProperties.getAuthentication().getPassword()));
 	}
 
 	@Override
@@ -66,15 +74,9 @@ final class Neo4jAuthProvider implements AuthenticationProvider {
 		var name = authentication.getName();
 		var password = authentication.getCredentials().toString();
 
-		var principal = new Neo4jPrincipal(name);
-		var usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(principal, password, List.of());
-
-		if (serverPassword != null && Objects.equals(serverUsername, name) && passwordEncoder.matches(password, this.serverPassword)) {
-			return usernamePasswordAuthenticationToken;
-		}
-
-		if (neo4j.canImpersonate(principal, password)) {
-			return usernamePasswordAuthenticationToken;
+		if (Objects.equals(serverUsername, name) && passwordEncoder.matches(password, this.serverPassword) || canImpersonate(name, password)) {
+			var principal = new Neo4jPrincipal(name);
+			return new UsernamePasswordAuthenticationToken(principal, password, List.of());
 		}
 
 		throw new BadCredentialsException("Could not authenticate" + name);
@@ -83,5 +85,31 @@ final class Neo4jAuthProvider implements AuthenticationProvider {
 	@Override
 	public boolean supports(Class<?> authentication) {
 		return authentication.equals(UsernamePasswordAuthenticationToken.class);
+	}
+
+	/**
+	 * A helper method for drivers that don't allow to use any authentication for impersonation. The main goal is actually
+	 * not to have that method at all, right now, it is all that is possible for having only one driver instance and make
+	 * use of multi users / impersonation.
+	 *
+	 * @param username   The username to check
+	 * @param password The password to try to authenticate with
+	 * @return {@literal true} if the given {@link Authentication} can be safely used as impersonated user
+	 */
+	boolean canImpersonate(String username, String password) {
+
+		try (var session = boltConnection.session()) {
+			return session.run("RETURN impersonation.authenticate($0, $1) = 'SUCCESS' AS result", Map.of(
+				"0", username,
+				"1", password.getBytes(StandardCharsets.UTF_8))
+			).single().get(0).asBoolean();
+		} catch (ClientException e) {
+			if (!"Neo.ClientError.Statement.SyntaxError".equals(e.code())) {
+				LOGGER.log(Level.SEVERE, "Error checking authentication prior to impersonation", e);
+			} else {
+				LOGGER.log(Level.WARNING, "impersonated-auth plugin is not installed, cannot authenticate user");
+			}
+			return false;
+		}
 	}
 }
