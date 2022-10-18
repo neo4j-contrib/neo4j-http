@@ -16,6 +16,7 @@
 package org.neo4j.impersonated_auth;
 
 import org.neo4j.common.DependencyResolver;
+import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.security.AuthenticationResult;
 import org.neo4j.kernel.api.security.AuthManager;

@@ -13,22 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.http;
+package org.neo4j.http.config;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 /**
- * Main entry point.
+ * Configures Jackson.
+ *
  * @author Michael J. Simons
  */
-@SpringBootApplication(proxyBeanMethods = false)
-public class Application {
+@Configuration(proxyBeanMethods = false)
+public class JacksonConfig {
 
-	/**
-	 * @param args Command line arguments provided to the application.
-	 */
-	public static void main(String[] args) {
-		SpringApplication.run(Application.class, args);
+	@Bean
+	public Jackson2ObjectMapperBuilderCustomizer objectMapperBuilderCustomizer() {
+		return builder -> {
+			// Whatever is necessary, added as placeholder
+		};
 	}
 }

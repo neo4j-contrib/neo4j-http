@@ -23,6 +23,8 @@ import java.util.regex.Pattern;
 import org.neo4j.driver.AccessMode;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.SessionConfig;
+import org.neo4j.driver.async.AsyncSession;
+import org.neo4j.driver.async.ResultCursor;
 import org.neo4j.driver.summary.Plan;
 import org.neo4j.driver.summary.ResultSummary;
 import org.springframework.cache.annotation.Cacheable;
@@ -54,10 +56,11 @@ class BoltAdapterImpl extends AbstractNeo4jAdapter {
 	@Override
 	public Target getQueryTarget(Neo4jPrincipal principal, String query) {
 
-		String theQuery = requireNonNullNonBlank(query);
+		var theQuery = requireNonNullNonBlank(query);
 		var sessionConfig = SessionConfig.builder()
 			.withImpersonatedUser(principal.username())
 			.withDefaultAccessMode(AccessMode.READ).build();
+
 		try (var session = driver.session(sessionConfig)) {
 			var summary = session.run("EXPLAIN " + theQuery).consume();
 			return evaluateOperators(getOperators(summary));
@@ -68,7 +71,7 @@ class BoltAdapterImpl extends AbstractNeo4jAdapter {
 	@Override
 	public TransactionMode getTransactionMode(Neo4jPrincipal principal, String query) {
 
-		String theQuery = requireNonNullNonBlank(query);
+		var theQuery = requireNonNullNonBlank(query);
 		if (!(CALL_PATTERN.matcher(theQuery).find() || USING_PERIODIC_PATTERN.matcher(theQuery).find())) {
 			return TransactionMode.MANAGED;
 		}

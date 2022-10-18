@@ -13,22 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.http;
+package org.neo4j.http.config;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.AsyncConfigurer;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 /**
- * Main entry point.
  * @author Michael J. Simons
  */
-@SpringBootApplication(proxyBeanMethods = false)
-public class Application {
+@Configuration(proxyBeanMethods = false)
+@EnableAsync
+public class WebMvcConfig implements AsyncConfigurer {
 
-	/**
-	 * @param args Command line arguments provided to the application.
-	 */
-	public static void main(String[] args) {
-		SpringApplication.run(Application.class, args);
+	@Override
+	public Executor getAsyncExecutor() {
+		return Executors.newWorkStealingPool();
 	}
 }
