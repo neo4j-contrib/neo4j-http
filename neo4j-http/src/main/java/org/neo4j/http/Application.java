@@ -17,12 +17,16 @@ package org.neo4j.http;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.neo4j.ConfigBuilderCustomizer;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.context.annotation.Bean;
 
 /**
  * Main entry point.
  * @author Michael J. Simons
  */
 @SpringBootApplication(proxyBeanMethods = false)
+@EnableCaching
 public class Application {
 
 	/**
@@ -30,5 +34,15 @@ public class Application {
 	 */
 	public static void main(String[] args) {
 		SpringApplication.run(Application.class, args);
+	}
+
+	/**
+	 * TODO remove me
+	 * Just trying out things
+	 * @return
+	 */
+	@Bean
+	ConfigBuilderCustomizer config() {
+		return builder -> builder.withFetchSize(3);
 	}
 }

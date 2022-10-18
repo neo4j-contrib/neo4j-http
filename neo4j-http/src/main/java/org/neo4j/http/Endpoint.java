@@ -17,17 +17,27 @@ package org.neo4j.http;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.neo4j.driver.Driver;
+import org.neo4j.driver.Result;
 import org.neo4j.driver.async.AsyncSession;
+import org.neo4j.driver.summary.ResultSummary;
 import org.neo4j.http.db.Neo4jAdapter;
+import org.neo4j.http.db.Neo4jPrincipal;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -72,6 +82,22 @@ public class Endpoint {
 	public StreamingResponseBody things() {
 		System.out.println(">> " + Thread.currentThread().getId() + " " + Thread.currentThread().getName());
 // return CompletableFuture.completedFuture("x");
+/*
+		AsyncSession session = driver.asyncSession();
+		CompletionStage<ResultSummary> cs = session
+			.readTransactionAsync(tx -> tx // <- the very first attempt is likely to execute using whatever thread that calls this, but retries will be called by Netty thread
+				.runAsync("MATCH (f:Movie) RETURN f ORDER BY f.title")
+				.thenCompose(cursor -> { // <- you could use thenComposeAsync with your own executor to switch if you wish to
+					System.out.println(Thread.currentThread().getId() + "; Thread "+ Thread.currentThread().getName());
+					return cursor.forEachAsync(record -> {
+
+					});
+				}));
+
+*/
+
+
+
 		return new StreamingResponseBody() {
 
 			@Override
@@ -79,22 +105,25 @@ public class Endpoint {
 				System.out.println("writing tx" + Thread.currentThread().getId() + " " + Thread.currentThread().getName());
 				JsonGenerator jc = objectMapper.createGenerator(outputStream);
 				jc.writeStartObject();
+
+				try(var session = driver.session()) {
+					Result result =session.run("MATCH (f:Movie) RETURN f ORDER BY f.title");
+					result.stream().forEach(r -> {
+						System.out.println("x");
+
+					});
+				}
+
 				jc.writeEndObject();
 				jc.flush();
 			}
 		};
-		/*
-		AsyncSession session = driver.asyncSession();
-		CompletionStage<List<String>> cs = session
-			.readTransactionAsync(tx -> tx // <- the very first attempt is likely to execute using whatever thread that calls this, but retries will be called by Netty thread
-				.runAsync("MATCH (f:Movie) RETURN f ORDER BY f.title")
-				.thenCompose(cursor -> { // <- you could use thenComposeAsync with your own executor to switch if you wish to
-					System.out.println(Thread.currentThread().getId() + "; Thread "+ Thread.currentThread().getName());
-					return cursor
-						.listAsync(record -> record.get("f").get("title").asString());
-				}))
+			/*
 		return cs.thenCompose(fruits -> session.closeAsync().thenApplyAsync(signal -> fruits));*/
 	}
+
+	@Autowired
+	TaskExecutor executor;
 
 	@GetMapping("/")
 	public String index() {

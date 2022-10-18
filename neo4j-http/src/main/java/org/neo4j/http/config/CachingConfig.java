@@ -15,7 +15,10 @@
  */
 package org.neo4j.http.config;
 
+import org.neo4j.driver.Config;
+import org.springframework.boot.autoconfigure.neo4j.ConfigBuilderCustomizer;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
