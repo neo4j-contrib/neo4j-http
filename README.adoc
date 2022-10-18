@@ -32,3 +32,19 @@ Those are open topics:
 == Notes
 
 Dependency management in separate, as boot comes with its own and the dependencies in the plugin and the api does not really overlap
+
+=== Async or not
+
+in general I am a fan of
+https://spring.io/blog/2022/10/11/embracing-virtual-threads
+
+> What we can say is that the most likely scenario in which you can benefit without almost any change, is if you’re currently not doing anything asynchronous at all (not even Servlet 3.1 style async requests, or otherwise you’ll probably need to make some revisions to align better). And of course, there would have to be some actual I/O or other thread parking for Loom to bring benefits.
+
+but there is no loom yet
+
+Couple of options:
+
+* Create async controllers (just returning some variant of deferrable result)
+** Use blocking api, wrap in completable futures, just use springs executors, will always thread swtich to netty
+** Use async api, return completable futures, accept independence from driver io & spring
+** Use async api, configure executors, will be really painful to call, but shared config
