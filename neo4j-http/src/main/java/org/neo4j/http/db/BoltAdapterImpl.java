@@ -18,6 +18,7 @@ package org.neo4j.http.db;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 import org.neo4j.driver.AccessMode;
 import org.neo4j.driver.Driver;
@@ -40,7 +41,9 @@ import org.springframework.stereotype.Service;
 @Primary
 class BoltAdapterImpl extends AbstractNeo4jAdapter {
 
-	private static final SessionConfig READ_SESSION_CONFIG = SessionConfig.builder().withDefaultAccessMode(AccessMode.READ).build();
+	private static final Pattern CALL_PATTERN = Pattern.compile("(?i)\\s*CALL\\s*\\{");
+	private static final Pattern USING_PERIODIC_PATTERN = Pattern.compile("(?i)\\s*USING\\s+PERIODIC\\s+COMMIT\\s+");
+
 	private final Driver driver;
 
 	BoltAdapterImpl(Driver driver) {
@@ -51,13 +54,31 @@ class BoltAdapterImpl extends AbstractNeo4jAdapter {
 	@Override
 	public Target getQueryTarget(Neo4jPrincipal principal, String query) {
 
-		try (var session = driver.session(READ_SESSION_CONFIG)) {
-			var summary = session.run("EXPLAIN " + query).consume();
+		String theQuery = requireNonNullNonBlank(query);
+		var sessionConfig = SessionConfig.builder()
+			.withImpersonatedUser(principal.username())
+			.withDefaultAccessMode(AccessMode.READ).build();
+		try (var session = driver.session(sessionConfig)) {
+			var summary = session.run("EXPLAIN " + theQuery).consume();
 			return evaluateOperators(getOperators(summary));
 		}
 	}
 
+	@Cacheable("queryTransactionModes")
+	@Override
+	public TransactionMode getTransactionMode(Neo4jPrincipal principal, String query) {
+
+		String theQuery = requireNonNullNonBlank(query);
+		if (!(CALL_PATTERN.matcher(theQuery).find() || USING_PERIODIC_PATTERN.matcher(theQuery).find())) {
+			return TransactionMode.MANAGED;
+		}
+
+		var characteristics = QueryCharacteristicsEvaluator.getCharacteristics(query);
+		return characteristics.callInTx() || characteristics.periodicCommit() ? TransactionMode.IMPLICIT : TransactionMode.MANAGED;
+	}
+
 	private static Set<CypherOperator> getOperators(ResultSummary summary) {
+
 		if (!summary.hasPlan()) {
 			return Set.of(CypherOperator.__UNKNOWN__);
 		}

@@ -44,20 +44,39 @@ public sealed interface Neo4jAdapter permits AbstractNeo4jAdapter {
 		/**
 		 * Requires to be routed to writers.
 		 */
-		WRITERS,
-		/**
-		 * Can't be decided from the implementing adapter, should be routed to writers if possible.
-		 */
-		UNDECIDED
+		WRITERS
 	}
 
 	/**
-	 * The target against a query should be executed.
+	 * Indicator of the transaction mode to use
+	 */
+	enum TransactionMode {
+		/**
+		 * Use managed transactions (aka transaction functions)
+		 */
+		MANAGED,
+		/**
+		 * Use implicit transactions (aka auto commit)
+		 */
+		IMPLICIT
+	}
+
+	/**
+	 * Computes or retrieves the target against a query should be executed.
 	 *
 	 * @param principal The authenticated principal for whom the query is evaluated
-	 * @param query     The string value of a query to be executed
+	 * @param query     The string value of a query to be executed, must not be {@literal null} or blank
 	 * @return A target for the query
 	 * @throws IllegalArgumentException if the query can not be dealt with
 	 */
 	Target getQueryTarget(Neo4jPrincipal principal, String query);
+
+	/**
+	 * Computes or retrieves the transaction mode required by the query.
+	 *
+	 * @param principal The authenticated principal for whom the query is evaluated
+	 * @param query     The string value of a query to be executed, must not be {@literal null} or blank
+	 * @return The transaction mode required by the query
+	 */
+	TransactionMode getTransactionMode(Neo4jPrincipal principal, String query);
 }

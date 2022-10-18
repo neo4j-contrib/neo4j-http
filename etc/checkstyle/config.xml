@@ -37,7 +37,7 @@
     <module name="SuppressWarningsFilter" />
 
     <module name="SuppressWithPlainTextCommentFilter">
-        <property name="offCommentFormat" value='=\s+"""'/>
+        <property name="offCommentFormat" value='(=\s+|\t+)"""'/>
         <property name="onCommentFormat" value='^\s+.*""";'/>
     </module>
 

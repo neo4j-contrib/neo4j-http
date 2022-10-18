@@ -48,7 +48,6 @@ class BoltAuthenticationProviderIT {
 
 	static final String DEFAULT_NEO4J_IMAGE = System.getProperty("neo4j-http.default-neo4j-image");
 
-
 	@SuppressWarnings("resource")
 	private static final Neo4jContainer<?> neo4j = new Neo4jContainer<>(DEFAULT_NEO4J_IMAGE)
 		.withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")

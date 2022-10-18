@@ -49,6 +49,11 @@
 
 	<dependencies>
 		<dependency>
+			<groupId>org.neo4j</groupId>
+			<artifactId>neo4j-cypher-javacc-parser</artifactId>
+			<version>${neo4j.version}</version>
+		</dependency>
+		<dependency>
 			<groupId>org.neo4j.driver</groupId>
 			<artifactId>neo4j-java-driver</artifactId>
 		</dependency>

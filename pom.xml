@@ -319,6 +319,12 @@
 							<rule>APPROVE</rule>
 							<value>BSD 2-Clause License</value>
 						</dependencyPolicy>
+						<dependencyPolicy>
+							<!-- The issue about the license of the parser is still pending internally… It should be ASL v2, but still defaults to GNU v3 -->
+							<type>ARTIFACT_PATTERN</type>
+							<rule>APPROVE</rule>
+							<value>org.neo4j:neo4j-cypher-javacc-parser:jar:${neo4j.version}</value>
+						</dependencyPolicy>
 					</dependencyPolicies>
 				</configuration>
 				<executions>
