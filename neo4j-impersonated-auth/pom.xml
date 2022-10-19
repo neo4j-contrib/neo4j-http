@@ -87,7 +87,27 @@
 			<exclusions>
 				<!-- We don't need any of that anyway in the plugin and also not in tests and it just messes with our dependency convergence requirements. -->
 				<exclusion>
-					<groupId>*</groupId>
+					<groupId>org.apache.commons</groupId>
+					<artifactId>commons-lang3</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-library</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.scala-lang</groupId>
+					<artifactId>scala-reflect</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-nop</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.neo4j</groupId>
+					<artifactId>neo4j-fabric</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>io.netty</groupId>
 					<artifactId>*</artifactId>
 				</exclusion>
 			</exclusions>

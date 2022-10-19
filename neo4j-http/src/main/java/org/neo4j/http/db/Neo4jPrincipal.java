@@ -15,7 +15,7 @@
  */
 package org.neo4j.http.db;
 
-import java.security.Principal;
+import org.springframework.security.core.AuthenticatedPrincipal;
 
 /**
  * A record containing details about the authenticated Neo4j (database) user.
@@ -23,7 +23,7 @@ import java.security.Principal;
  * @author Michael J. Simons
  * @param username The username
  */
-public record Neo4jPrincipal(String username) implements Principal {
+public record Neo4jPrincipal(String username) implements AuthenticatedPrincipal {
 
 	@Override
 	public String getName() {

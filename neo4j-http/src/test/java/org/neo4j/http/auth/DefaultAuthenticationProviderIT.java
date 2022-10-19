@@ -81,7 +81,7 @@ class DefaultAuthenticationProviderIT {
 			.withBasicAuth("neo4j", neo4j.getAdminPassword())
 			.exchange("/tests/", HttpMethod.GET, null, String.class);
 		assertThat(exchange.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(exchange.getBody()).isEqualTo("index");
+		assertThat(exchange.getBody()).isEqualTo("index-neo4j");
 	}
 
 	@Test
@@ -91,7 +91,7 @@ class DefaultAuthenticationProviderIT {
 			.withBasicAuth("jake", "xyz")
 			.exchange("/tests/", HttpMethod.GET, null, String.class);
 		assertThat(exchange.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(exchange.getBody()).isEqualTo("index");
+		assertThat(exchange.getBody()).isEqualTo("index-jake");
 	}
 
 	@Test

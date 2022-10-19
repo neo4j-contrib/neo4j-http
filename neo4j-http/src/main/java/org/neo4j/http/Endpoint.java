@@ -60,7 +60,7 @@ public class Endpoint {
 		return neo4j.getQueryTarget(authentication, query).name() + ": " + authentication;
 	}
 */
-	@PostMapping("/b")
+	@PostMapping(value = "/b", produces = MediaType.APPLICATION_NDJSON_VALUE)
 	Flux<Wip> wip2(@AuthenticationPrincipal Neo4jPrincipal authentication, @RequestBody String query) {
 		return neo4j.stream(authentication, query);
 	}

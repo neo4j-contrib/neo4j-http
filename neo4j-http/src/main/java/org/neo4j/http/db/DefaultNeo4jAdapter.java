@@ -16,20 +16,23 @@
 package org.neo4j.http.db;
 
 import java.util.List;
-import java.util.Map;
+import java.util.function.Function;
 
+import org.neo4j.driver.AccessMode;
 import org.neo4j.driver.Driver;
+import org.neo4j.driver.SessionConfig;
+import org.neo4j.driver.reactive.RxQueryRunner;
+import org.neo4j.driver.reactive.RxSession;
+import org.neo4j.driver.util.Pair;
+import org.reactivestreams.Publisher;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
 
 /**
- * Notes:
- * <ul>
- *     <li>Only credentials supported are {@link String}, mapping to an unencoded password</li>
- * </ul>
- *
  * @author Michael J. Simons
  */
 @Service
@@ -45,10 +48,49 @@ class DefaultNeo4jAdapter extends AbstractNeo4jAdapter {
 		this.driver = driver;
 	}
 
+	String normalizeQuery(String query) {
+		return query;
+	}
+
 	@Override
+	// Redundant suppression is a lie… Only IntelliJ thinks so…
+	@SuppressWarnings({"deprecation", "RedundantSuppression"})
 	public Flux<Wip> stream(Neo4jPrincipal principal, String query) {
-		return queryEvaluator.getExecutionRequirements(principal, query)
-				.map(r -> new Wip(List.of(Map.of("x", r.target()))))
-					.flux();
+
+		var theQuery = normalizeQuery(query);
+		return Mono.just(principal)
+			.zipWith(queryEvaluator.getExecutionRequirements(principal, theQuery))
+			.flatMapMany(env -> this.execute0(env, q -> Flux.from(q.run(query).records())).map(r -> {
+				List<Object> content = r.fields().stream().map(Pair::value).map(v -> driver.defaultTypeSystem().MAP().isTypeOf(v) ? v.asMap() : v.asObject()).toList();
+				return new Wip(content);
+			}));
+	}
+
+	@SuppressWarnings("deprecation")
+	<T> Flux<T> execute0(Tuple2<Neo4jPrincipal, QueryEvaluator.ExecutionRequirements> env, Function<RxQueryRunner, Publisher<T>> f) {
+
+		var requirements = env.getT2();
+		var sessionConfig = SessionConfig.builder()
+			.withImpersonatedUser(env.getT1().username())
+			.withDefaultAccessMode(requirements.target() == QueryEvaluator.Target.WRITERS ? AccessMode.WRITE : AccessMode.READ)
+			.build();
+		var sessionSupplier = Mono.fromCallable(() -> driver.rxSession(sessionConfig));
+
+		if (requirements.transactionMode() == QueryEvaluator.TransactionMode.IMPLICIT) {
+			return Flux.usingWhen(sessionSupplier, f, RxSession::close);
+		} else {
+			return switch (requirements.target()) {
+				case WRITERS -> Flux.usingWhen(
+					sessionSupplier,
+					session -> session.writeTransaction(f::apply),
+					RxSession::close
+				);
+				case READERS -> Flux.usingWhen(
+					sessionSupplier,
+					session -> session.readTransaction(f::apply),
+					RxSession::close
+				);
+			};
+		}
 	}
 }

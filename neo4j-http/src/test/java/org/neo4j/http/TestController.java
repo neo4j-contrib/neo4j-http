@@ -15,6 +15,8 @@
  */
 package org.neo4j.http;
 
+import org.neo4j.http.db.Neo4jPrincipal;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TestController {
 
 	@GetMapping("/")
-	public String index() {
-		return "index";
+	public String index(@AuthenticationPrincipal Neo4jPrincipal principal) {
+		return "index-" + principal.getName();
 	}
 }
