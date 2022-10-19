@@ -16,6 +16,7 @@
 package org.neo4j.http.db;
 
 import java.util.List;
+import java.util.Map;
 
 import org.neo4j.driver.Driver;
 import org.springframework.context.annotation.Primary;
@@ -46,7 +47,8 @@ class DefaultNeo4jAdapter extends AbstractNeo4jAdapter {
 
 	@Override
 	public Flux<Wip> stream(Neo4jPrincipal principal, String query) {
-		System.out.println(queryEvaluator.getExecutionRequirements(principal, query));
-		return Flux.just(new Wip(List.of()));
+		return queryEvaluator.getExecutionRequirements(principal, query)
+				.map(r -> new Wip(List.of(Map.of("x", r.target()))))
+					.flux();
 	}
 }

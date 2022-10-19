@@ -17,6 +17,8 @@ package org.neo4j.http.db;
 
 import java.util.logging.Logger;
 
+import reactor.core.publisher.Mono;
+
 /**
  * A strategy for determining the execution requirements of a query.
  *
@@ -74,5 +76,5 @@ interface QueryEvaluator {
 	 * @param query     The string value of a query to be executed, must not be {@literal null} or blank
 	 * @return The characteristics of the query
 	 */
-	ExecutionRequirements getExecutionRequirements(Neo4jPrincipal principal, String query);
+	Mono<ExecutionRequirements> getExecutionRequirements(Neo4jPrincipal principal, String query);
 }

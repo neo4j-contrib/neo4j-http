@@ -43,11 +43,14 @@ import org.neo4j.cypher.internal.parser.javacc.CypherCharStream;
 import org.neo4j.driver.AccessMode;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.SessionConfig;
+import org.neo4j.driver.reactive.RxSession;
 import org.neo4j.driver.summary.Plan;
 import org.neo4j.driver.summary.ResultSummary;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
+
+import reactor.core.publisher.Mono;
 
 /**
  * Uses the AST factory basically as a visitor and memorizes if any call {} in transactions of element has been seen.
@@ -69,47 +72,52 @@ class DefaultQueryEvaluator implements QueryEvaluator {
 
 	@Cacheable("executionRequirements")
 	@Override
-	public ExecutionRequirements getExecutionRequirements(Neo4jPrincipal principal, String query) {
+	public Mono<ExecutionRequirements> getExecutionRequirements(Neo4jPrincipal principal, String query) {
 
 		var theQuery = requireNonNullNonBlank(query);
-		return new ExecutionRequirements(getQueryTarget(principal, theQuery), getTransactionMode(theQuery));
+		return getQueryTarget(principal, theQuery).zipWith(getTransactionMode(theQuery), ExecutionRequirements::new)
+			.cache();
 	}
 
 	/**
 	 * Computes or retrieves the target against a query should be executed.
+	 * <p>
+	 * Deprecations are suppressed as we are using the reactivestreams based reactive session.
 	 *
 	 * @param principal The authenticated principal for whom the query is evaluated
 	 * @param query     The string value of a query to be executed, must not be {@literal null} or blank
 	 * @return A target for the query
 	 * @throws IllegalArgumentException if the query can not be dealt with
 	 */
-	private Target getQueryTarget(Neo4jPrincipal principal, String query) {
+	@SuppressWarnings("deprecation")
+	private Mono<Target> getQueryTarget(Neo4jPrincipal principal, String query) {
 
 		var sessionConfig = SessionConfig.builder()
 			.withImpersonatedUser(principal.username())
 			.withDefaultAccessMode(AccessMode.READ).build();
-
-		try (var session = driver.session(sessionConfig)) {
-			var summary = session.run("EXPLAIN " + query).consume();
-			return getOperators(summary).stream().
-				anyMatch(CypherOperator::isUpdating) ? Target.WRITERS : Target.READERS;
-		}
+		return
+			Mono.usingWhen(
+				Mono.fromCallable(() -> driver.rxSession(sessionConfig)),
+				session -> Mono.fromDirect(session.run("EXPLAIN " + query).consume()),
+				RxSession::close
+			).map(summary -> getOperators(summary).stream().anyMatch(CypherOperator::isUpdating) ? Target.WRITERS : Target.READERS);
 	}
 
 	/**
 	 * Computes or retrieves the transaction mode required by the query.
 	 *
-	 * @param query     The string value of a query to be executed, must not be {@literal null} or blank
+	 * @param query The string value of a query to be executed, must not be {@literal null} or blank
 	 * @return The transaction mode required by the query
 	 */
-	private TransactionMode getTransactionMode(String query) {
+	private Mono<TransactionMode> getTransactionMode(String query) {
 
-		if (!(CALL_PATTERN.matcher(query).find() || USING_PERIODIC_PATTERN.matcher(query).find())) {
-			return TransactionMode.MANAGED;
+		var result = TransactionMode.MANAGED;
+		if (CALL_PATTERN.matcher(query).find() || USING_PERIODIC_PATTERN.matcher(query).find()) {
+			var characteristics = DefaultQueryEvaluator.getCharacteristics(query);
+			result = characteristics.callInTx() || characteristics.periodicCommit() ? TransactionMode.IMPLICIT : TransactionMode.MANAGED;
 		}
 
-		var characteristics = DefaultQueryEvaluator.getCharacteristics(query);
-		return characteristics.callInTx() || characteristics.periodicCommit() ? TransactionMode.IMPLICIT : TransactionMode.MANAGED;
+		return Mono.just(result);
 	}
 
 	private static Set<CypherOperator> getOperators(ResultSummary summary) {
@@ -119,14 +127,16 @@ class DefaultQueryEvaluator implements QueryEvaluator {
 		}
 
 		Set<CypherOperator> operators = new HashSet<>();
-		traversePlan(summary.database().name(), summary.plan(), operators::add);
+		traversePlan(summary.plan(), operators::add);
 		return Set.copyOf(operators);
 	}
 
-	private static void traversePlan(String databaseName, Plan plan, Consumer<CypherOperator> operatorSink) {
+	private static void traversePlan(Plan plan, Consumer<CypherOperator> operatorSink) {
 
 		var operator = CypherOperator.__UNKNOWN__;
-		var operatorType = plan.operatorType().substring(0, plan.operatorType().indexOf(databaseName) - 1);
+		// Can't use the database name here from the summary, as it is broken in the reactive variant, see
+		// https://github.com/neo4j/neo4j-java-driver/issues/1320
+		var operatorType = plan.operatorType().substring(0, plan.operatorType().indexOf('@'));
 		try {
 			operator = CypherOperator.valueOf(operatorType);
 		} catch (IllegalArgumentException e) {
@@ -135,7 +145,7 @@ class DefaultQueryEvaluator implements QueryEvaluator {
 		operatorSink.accept(operator);
 		if (!plan.children().isEmpty()) {
 			for (Plan childPlan : plan.children()) {
-				traversePlan(databaseName, childPlan, operatorSink);
+				traversePlan(childPlan, operatorSink);
 			}
 		}
 	}

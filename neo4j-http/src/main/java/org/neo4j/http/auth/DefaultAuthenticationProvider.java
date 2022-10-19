@@ -23,8 +23,10 @@ import java.util.logging.Level;
 
 import org.neo4j.driver.AccessMode;
 import org.neo4j.driver.Driver;
+import org.neo4j.driver.Query;
 import org.neo4j.driver.SessionConfig;
 import org.neo4j.driver.exceptions.ClientException;
+import org.neo4j.driver.reactive.RxSession;
 import org.neo4j.http.db.Neo4jPrincipal;
 import org.springframework.boot.autoconfigure.neo4j.Neo4jProperties;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -34,6 +36,7 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
@@ -51,8 +54,9 @@ import reactor.core.publisher.Mono;
 @Component
 final class DefaultAuthenticationProvider implements Neo4jAuthenticationProvider {
 
+	private static final SessionConfig DEFAULT_SESSION_CONFIG = SessionConfig.builder().withDefaultAccessMode(AccessMode.READ).build();
+
 	private final Driver boltConnection;
-	private final SessionConfig read_session_config;
 
 	private final PasswordEncoder passwordEncoder;
 
@@ -62,7 +66,6 @@ final class DefaultAuthenticationProvider implements Neo4jAuthenticationProvider
 	DefaultAuthenticationProvider(Neo4jProperties neo4jProperties, Driver boltConnection) {
 
 		this.boltConnection = boltConnection;
-		this.read_session_config = SessionConfig.builder().withDefaultAccessMode(AccessMode.READ).build();
 
 		this.passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
 
@@ -73,16 +76,15 @@ final class DefaultAuthenticationProvider implements Neo4jAuthenticationProvider
 	@Override
 	public Mono<Authentication> authenticate(Authentication authentication) {
 
-		return Mono.<Authentication>fromCallable(() -> {
+		var authenticatedPrincipal = Mono.<Authentication>fromCallable(() -> {
 			var name = authentication.getName();
-			var password = authentication.getCredentials().toString();
+			return new UsernamePasswordAuthenticationToken(new Neo4jPrincipal(name), authentication.getCredentials(), List.of());
+		}).share();
 
-			if (Objects.equals(serverUsername, name) && passwordEncoder.matches(password, this.serverPassword) || canImpersonate(name, password)) {
-				var principal = new Neo4jPrincipal(name);
-				return new UsernamePasswordAuthenticationToken(principal, password, List.of());
-			}
-			return null;
-		}).switchIfEmpty(Mono.error(new BadCredentialsException("Could not authenticate" + authentication.getName())));
+		return authenticatedPrincipal
+			.filter(p -> Objects.equals(p.getName(), serverUsername) && passwordEncoder.matches((String) p.getCredentials(), this.serverPassword))
+			.switchIfEmpty(authenticatedPrincipal.filterWhen(this::canImpersonate))
+			.switchIfEmpty(Mono.error(new BadCredentialsException("Could not authenticate" + authentication.getName())));
 	}
 
 	/**
@@ -90,24 +92,33 @@ final class DefaultAuthenticationProvider implements Neo4jAuthenticationProvider
 	 * not to have that method at all, right now, it is all that is possible for having only one driver instance and make
 	 * use of multi users / impersonation.
 	 *
-	 * @param username   The username to check
-	 * @param password The password to try to authenticate with
+	 * @param principalAndPassword The principal and password to check
 	 * @return {@literal true} if the given {@link Authentication} can be safely used as impersonated user
 	 */
-	boolean canImpersonate(String username, String password) {
+	@SuppressWarnings("deprecation")
+	Mono<Boolean> canImpersonate(Authentication principalAndPassword) {
 
-		try (var session = boltConnection.session(read_session_config)) {
-			return session.run("RETURN impersonation.authenticate($0, $1) = 'SUCCESS' AS result", Map.of(
-				"0", username,
-				"1", password.getBytes(StandardCharsets.UTF_8))
-			).single().get(0).asBoolean();
-		} catch (ClientException e) {
+		var query = new Query(
+			"RETURN impersonation.authenticate($0, $1) = 'SUCCESS' AS result",
+			Map.of(
+				"0", principalAndPassword.getName(),
+				"1", ((String) principalAndPassword.getCredentials()).getBytes(StandardCharsets.UTF_8)
+			)
+		);
+
+		return Mono.usingWhen(
+			Mono.fromCallable(() -> boltConnection.rxSession(DEFAULT_SESSION_CONFIG)),
+			session -> Flux.from(session.run(query).records())
+				.map(record -> record.get(0).asBoolean())
+				.single(),
+			RxSession::close
+		).onErrorResume(ClientException.class, e -> {
 			if (!"Neo.ClientError.Statement.SyntaxError".equals(e.code())) {
 				LOGGER.log(Level.SEVERE, "Error checking authentication prior to impersonation", e);
 			} else {
 				LOGGER.log(Level.WARNING, "impersonated-auth plugin is not installed, cannot authenticate user");
 			}
-			return false;
-		}
+			return Mono.just(Boolean.FALSE);
+		});
 	}
 }

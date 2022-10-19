@@ -57,7 +57,6 @@ public class Endpoint {
 	/*
 	@PostMapping
 	String wip(@AuthenticationPrincipal Neo4jPrincipal authentication, @RequestBody String query) {
-		System.out.println(authentication);
 		return neo4j.getQueryTarget(authentication, query).name() + ": " + authentication;
 	}
 */
@@ -71,7 +70,6 @@ public class Endpoint {
 
 	@GetMapping(value = "/a", produces = MediaType.APPLICATION_NDJSON_VALUE)
 	public Flux<Wip> things() {
-		System.out.println(">> " + Thread.currentThread().getId() + " " + Thread.currentThread().getName());
 		return Flux.range(0, 230)
 			.delayElements(Duration.ofMillis(500))
 			.map(i -> new Wip(List.of("foo", Map.of("a", "b"))));

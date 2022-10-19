@@ -15,9 +15,6 @@
  */
 package org.neo4j.http.db;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -28,11 +25,12 @@ import org.neo4j.driver.Config;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Logging;
-import org.neo4j.driver.exceptions.ClientException;
 import org.neo4j.http.db.QueryEvaluator.Target;
 import org.neo4j.http.db.QueryEvaluator.TransactionMode;
 import org.testcontainers.containers.Neo4jContainer;
 import org.testcontainers.containers.Neo4jLabsPlugin;
+
+import reactor.test.StepVerifier;
 
 /**
  * @author Michael J. Simons
@@ -59,7 +57,7 @@ class DefaultQueryEvaluatorIT {
 	@AfterAll
 	static void closeDriver() {
 
-		driver.close();
+		driver.closeAsync();
 	}
 
 	@ParameterizedTest
@@ -76,8 +74,11 @@ class DefaultQueryEvaluatorIT {
 	void shouldDetectUpdatingOperators(String query) {
 
 		var evaluator = new DefaultQueryEvaluator(driver);
-		var target = evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query).target();
-		assertThat(target).isEqualTo(Target.WRITERS);
+		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query)
+			.map(QueryEvaluator.ExecutionRequirements::target)
+			.as(StepVerifier::create)
+			.expectNext(Target.WRITERS)
+			.verifyComplete();
 	}
 
 	@ParameterizedTest
@@ -88,8 +89,11 @@ class DefaultQueryEvaluatorIT {
 	void shouldDetectNonUpdatingOperators(String query) {
 
 		var evaluator = new DefaultQueryEvaluator(driver);
-		var target = evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query).target();
-		assertThat(target).isEqualTo(Target.READERS);
+		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query)
+			.map(QueryEvaluator.ExecutionRequirements::target)
+			.as(StepVerifier::create)
+			.expectNext(Target.READERS)
+			.verifyComplete();
 	}
 
 	@Test
@@ -97,11 +101,11 @@ class DefaultQueryEvaluatorIT {
 
 		var evaluator = new DefaultQueryEvaluator(driver);
 		var principal = new Neo4jPrincipal("foo");
-		assertThatExceptionOfType(ClientException.class)
-			.isThrownBy(() -> evaluator.getExecutionRequirements(principal, "MATCH (n) RETURN n"))
-			.withMessage("Cannot impersonate user 'foo'.");
+		evaluator.getExecutionRequirements(principal, "MATCH (n) RETURN n")
+				.as(StepVerifier::create)
+					.expectErrorMessage("Cannot impersonate user 'foo'.")
+						.verify();
 	}
-
 
 	@ParameterizedTest
 	@ValueSource(strings = {
@@ -121,8 +125,11 @@ class DefaultQueryEvaluatorIT {
 	void shouldDetectImplicitTransactionNeeds(String query) {
 
 		var evaluator = new DefaultQueryEvaluator(driver);
-		var mode = evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query).transactionMode();
-		assertThat(mode).isEqualTo(TransactionMode.IMPLICIT);
+		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query)
+			.map(QueryEvaluator.ExecutionRequirements::transactionMode)
+			.as(StepVerifier::create)
+			.expectNext(TransactionMode.IMPLICIT)
+			.verifyComplete();
 	}
 
 	@ParameterizedTest
@@ -141,7 +148,10 @@ class DefaultQueryEvaluatorIT {
 	void shouldDetectManagedTransactionNeeds(String query) {
 
 		var evaluator = new DefaultQueryEvaluator(driver);
-		var mode = evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query).transactionMode();
-		assertThat(mode).isEqualTo(TransactionMode.MANAGED);
+		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query)
+			.map(QueryEvaluator.ExecutionRequirements::transactionMode)
+			.as(StepVerifier::create)
+			.expectNext(TransactionMode.MANAGED)
+			.verifyComplete();
 	}
 }
