@@ -35,6 +35,8 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import reactor.core.publisher.Mono;
+
 /**
  * Checks a given authentication against the known properties. If this is not successful, it tries to use the configured
  * adapter.
@@ -70,22 +72,18 @@ final class BoltAuthenticationProvider implements Neo4jAuthenticationProvider {
 	}
 
 	@Override
-	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+	public Mono<Authentication> authenticate(Authentication authentication) {
 
-		var name = authentication.getName();
-		var password = authentication.getCredentials().toString();
+		return Mono.<Authentication>fromCallable(() -> {
+			var name = authentication.getName();
+			var password = authentication.getCredentials().toString();
 
-		if (Objects.equals(serverUsername, name) && passwordEncoder.matches(password, this.serverPassword) || canImpersonate(name, password)) {
-			var principal = new Neo4jPrincipal(name);
-			return new UsernamePasswordAuthenticationToken(principal, password, List.of());
-		}
-
-		throw new BadCredentialsException("Could not authenticate" + name);
-	}
-
-	@Override
-	public boolean supports(Class<?> authentication) {
-		return authentication.equals(UsernamePasswordAuthenticationToken.class);
+			if (Objects.equals(serverUsername, name) && passwordEncoder.matches(password, this.serverPassword) || canImpersonate(name, password)) {
+				var principal = new Neo4jPrincipal(name);
+				return new UsernamePasswordAuthenticationToken(principal, password, List.of());
+			}
+			return null;
+		}).switchIfEmpty(Mono.error(new BadCredentialsException("Could not authenticate" + authentication.getName())));
 	}
 
 	/**

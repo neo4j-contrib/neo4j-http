@@ -18,7 +18,9 @@ package org.neo4j.http.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.server.SecurityWebFilterChain;
 
 /**
  * Custom security configuration. For example, CSRF protection is useful when dealing with web forms etc. but not with a REST api.
@@ -31,13 +33,14 @@ public class SecurityConfig {
 	/**
 	 * @param http Existing chain
 	 * @return A chain that requires all requests to be authenticated and disables CSRF
-	 * @throws Exception any exception that the builder might throw
 	 */
 	@Bean
-	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+	public SecurityWebFilterChain filterChain(ServerHttpSecurity http) {
 
 		return http
-			.authorizeRequests().anyRequest().authenticated().and()
+			.authorizeExchange(exchanges -> exchanges
+				.anyExchange().authenticated()
+			)
 			.httpBasic().and()
 			.csrf().disable()
 			.build();

@@ -45,7 +45,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -79,8 +78,9 @@ public class Endpoint {
 	ObjectMapper objectMapper;
 
 	@GetMapping("/a")
-	public StreamingResponseBody things() {
+	public String things() {
 		System.out.println(">> " + Thread.currentThread().getId() + " " + Thread.currentThread().getName());
+		return "tbd";
 // return CompletableFuture.completedFuture("x");
 /*
 		AsyncSession session = driver.asyncSession();
@@ -97,7 +97,7 @@ public class Endpoint {
 */
 
 
-
+/*
 		return new StreamingResponseBody() {
 
 			@Override
