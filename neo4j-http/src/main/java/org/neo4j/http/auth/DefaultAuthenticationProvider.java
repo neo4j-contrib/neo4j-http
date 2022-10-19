@@ -30,7 +30,6 @@ import org.springframework.boot.autoconfigure.neo4j.Neo4jProperties;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -50,7 +49,7 @@ import reactor.core.publisher.Mono;
  * @author Michael J. Simons
  */
 @Component
-final class BoltAuthenticationProvider implements Neo4jAuthenticationProvider {
+final class DefaultAuthenticationProvider implements Neo4jAuthenticationProvider {
 
 	private final Driver boltConnection;
 	private final SessionConfig read_session_config;
@@ -60,7 +59,7 @@ final class BoltAuthenticationProvider implements Neo4jAuthenticationProvider {
 	private final String serverPassword;
 	private final String serverUsername;
 
-	BoltAuthenticationProvider(Neo4jProperties neo4jProperties, Driver boltConnection) {
+	DefaultAuthenticationProvider(Neo4jProperties neo4jProperties, Driver boltConnection) {
 
 		this.boltConnection = boltConnection;
 		this.read_session_config = SessionConfig.builder().withDefaultAccessMode(AccessMode.READ).build();

@@ -17,7 +17,6 @@ package org.neo4j.http.auth;
 
 import java.util.logging.Logger;
 
-import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 
 /**
@@ -25,7 +24,7 @@ import org.springframework.security.authentication.ReactiveAuthenticationManager
  *
  * @author Michael J. Simons
  */
-public sealed interface Neo4jAuthenticationProvider extends ReactiveAuthenticationManager permits BoltAuthenticationProvider {
+public sealed interface Neo4jAuthenticationProvider extends ReactiveAuthenticationManager permits DefaultAuthenticationProvider {
 
 	/**
 	 * Shared logger for all authentication provider instances.

@@ -15,10 +15,6 @@
  */
 package org.neo4j.http.db;
 
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.Predicate;
-
 /**
  * The default adapter uses Springs declarative caching mechanism and the non-sealed base class allows actual implementations
  * to break the seal without allowing arbitrary other implementations into the hierarchy.
@@ -26,27 +22,4 @@ import java.util.function.Predicate;
  * @author Michael J. Simons
  */
 non-sealed abstract class AbstractNeo4jAdapter implements Neo4jAdapter {
-
-	/**
-	 * Makes sure that a query is not null and not blank
-	 *
-	 * @param query The query to evaluate
-	 * @return A string to be guaranteed not null or blank
-	 */
-	final String requireNonNullNonBlank(String query) {
-
-		return Optional.ofNullable(query).map(String::trim).filter(Predicate.not(String::isBlank)).orElseThrow();
-	}
-
-	/**
-	 * Evaluates the list of given {@link CypherOperator cypher operators} for operators we know as updating operators.
-	 * In case any updating operator is found, we will delegate
-	 *
-	 * @param cypherOperators A set of cypher operators
-	 * @return The target to run a given query against
-	 */
-	final Target evaluateOperators(Set<CypherOperator> cypherOperators) {
-
-		return cypherOperators.stream().anyMatch(CypherOperator::isUpdating) ? Target.WRITERS : Target.READERS;
-	}
 }

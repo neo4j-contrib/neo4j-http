@@ -15,9 +15,15 @@
  */
 package org.neo4j.http.db;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 import org.neo4j.cypher.internal.ast.factory.ASTExceptionFactory;
 import org.neo4j.cypher.internal.ast.factory.ASTFactory;
@@ -34,24 +40,116 @@ import org.neo4j.cypher.internal.ast.factory.ShowCommandFilterTypes;
 import org.neo4j.cypher.internal.ast.factory.SimpleEither;
 import org.neo4j.cypher.internal.parser.javacc.Cypher;
 import org.neo4j.cypher.internal.parser.javacc.CypherCharStream;
+import org.neo4j.driver.AccessMode;
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.SessionConfig;
+import org.neo4j.driver.summary.Plan;
+import org.neo4j.driver.summary.ResultSummary;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Primary;
+import org.springframework.stereotype.Service;
 
 /**
  * Uses the AST factory basically as a visitor and memorizes if any call {} in transactions of element has been seen.
  *
  * @author Michael J. Simons
  */
-final class QueryCharacteristicsEvaluator {
+@Service
+@Primary
+class DefaultQueryEvaluator implements QueryEvaluator {
 
-	record QueryCharacteristics(boolean callInTx, boolean periodicCommit) {
+	private static final Pattern CALL_PATTERN = Pattern.compile("(?i)\\s*CALL\\s*\\{");
+	private static final Pattern USING_PERIODIC_PATTERN = Pattern.compile("(?i)\\s*USING\\s+PERIODIC\\s+COMMIT\\s+");
+
+	private final Driver driver;
+
+	DefaultQueryEvaluator(Driver driver) {
+		this.driver = driver;
+	}
+
+	@Cacheable("executionRequirements")
+	@Override
+	public ExecutionRequirements getExecutionRequirements(Neo4jPrincipal principal, String query) {
+
+		var theQuery = requireNonNullNonBlank(query);
+		return new ExecutionRequirements(getQueryTarget(principal, theQuery), getTransactionMode(theQuery));
 	}
 
 	/**
-	 * Retrieves easy to determine query characteristics. It might be worth thinking about determining read / writes here as well.
+	 * Computes or retrieves the target against a query should be executed.
+	 *
+	 * @param principal The authenticated principal for whom the query is evaluated
+	 * @param query     The string value of a query to be executed, must not be {@literal null} or blank
+	 * @return A target for the query
+	 * @throws IllegalArgumentException if the query can not be dealt with
+	 */
+	private Target getQueryTarget(Neo4jPrincipal principal, String query) {
+
+		var sessionConfig = SessionConfig.builder()
+			.withImpersonatedUser(principal.username())
+			.withDefaultAccessMode(AccessMode.READ).build();
+
+		try (var session = driver.session(sessionConfig)) {
+			var summary = session.run("EXPLAIN " + query).consume();
+			return getOperators(summary).stream().
+				anyMatch(CypherOperator::isUpdating) ? Target.WRITERS : Target.READERS;
+		}
+	}
+
+	/**
+	 * Computes or retrieves the transaction mode required by the query.
+	 *
+	 * @param query     The string value of a query to be executed, must not be {@literal null} or blank
+	 * @return The transaction mode required by the query
+	 */
+	private TransactionMode getTransactionMode(String query) {
+
+		if (!(CALL_PATTERN.matcher(query).find() || USING_PERIODIC_PATTERN.matcher(query).find())) {
+			return TransactionMode.MANAGED;
+		}
+
+		var characteristics = DefaultQueryEvaluator.getCharacteristics(query);
+		return characteristics.callInTx() || characteristics.periodicCommit() ? TransactionMode.IMPLICIT : TransactionMode.MANAGED;
+	}
+
+	private static Set<CypherOperator> getOperators(ResultSummary summary) {
+
+		if (!summary.hasPlan()) {
+			return Set.of(CypherOperator.__UNKNOWN__);
+		}
+
+		Set<CypherOperator> operators = new HashSet<>();
+		traversePlan(summary.database().name(), summary.plan(), operators::add);
+		return Set.copyOf(operators);
+	}
+
+	private static void traversePlan(String databaseName, Plan plan, Consumer<CypherOperator> operatorSink) {
+
+		var operator = CypherOperator.__UNKNOWN__;
+		var operatorType = plan.operatorType().substring(0, plan.operatorType().indexOf(databaseName) - 1);
+		try {
+			operator = CypherOperator.valueOf(operatorType);
+		} catch (IllegalArgumentException e) {
+			LOGGER.warning(() -> String.format("An unknown operator was encountered: %s", operatorType));
+		}
+		operatorSink.accept(operator);
+		if (!plan.children().isEmpty()) {
+			for (Plan childPlan : plan.children()) {
+				traversePlan(databaseName, childPlan, operatorSink);
+			}
+		}
+	}
+
+	private record QueryCharacteristics(boolean callInTx, boolean periodicCommit) {
+	}
+
+	/**
+	 * Retrieves easy to determine query details such as call in tx / periodic commit.
 	 *
 	 * @param query The query to evaluate
-	 * @return The characteristics of the query
+	 * @return The details of the query
 	 */
-	static QueryCharacteristics getCharacteristics(String query) {
+	private static QueryCharacteristics getCharacteristics(String query) {
 		ASTFactoryImpl astFactory = new ASTFactoryImpl();
 		try {
 			// We are using the side effects of the factory
@@ -63,6 +161,11 @@ final class QueryCharacteristicsEvaluator {
 		} catch (Exception e) {
 			return new QueryCharacteristics(false, false);
 		}
+	}
+
+	private String requireNonNullNonBlank(String query) {
+
+		return Optional.ofNullable(query).map(String::trim).filter(Predicate.not(String::isBlank)).orElseThrow();
 	}
 
 	private enum ASTExceptionFactoryImpl implements ASTExceptionFactory {

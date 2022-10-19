@@ -13,15 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.http.config;
+package org.neo4j.http.db;
 
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.context.annotation.Configuration;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
+ * Will eventually by a data element as described here
+ * https://neo4j.com/docs/http-api/current/actions/begin-and-commit-a-transaction-in-one-request/
+ *
  * @author Michael J. Simons
+ * @param content The actual row content
  */
-@Configuration(proxyBeanMethods = false)
-@EnableCaching
-public class CachingConfig {
+public record Wip(
+
+	@JsonProperty("row")
+	List<Object> content
+) {
 }

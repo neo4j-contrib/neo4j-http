@@ -29,13 +29,15 @@ import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Logging;
 import org.neo4j.driver.exceptions.ClientException;
+import org.neo4j.http.db.QueryEvaluator.Target;
+import org.neo4j.http.db.QueryEvaluator.TransactionMode;
 import org.testcontainers.containers.Neo4jContainer;
 import org.testcontainers.containers.Neo4jLabsPlugin;
 
 /**
  * @author Michael J. Simons
  */
-class BoltAdapterImplIT {
+class DefaultQueryEvaluatorIT {
 
 	static final String DEFAULT_NEO4J_IMAGE = System.getProperty("neo4j-http.default-neo4j-image");
 
@@ -73,9 +75,9 @@ class BoltAdapterImplIT {
 	})
 	void shouldDetectUpdatingOperators(String query) {
 
-		var adapter = new BoltAdapterImpl(driver);
-		var target = adapter.getQueryTarget(new Neo4jPrincipal("neo4j"), query);
-		assertThat(target).isEqualTo(Neo4jAdapter.Target.WRITERS);
+		var evaluator = new DefaultQueryEvaluator(driver);
+		var target = evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query).target();
+		assertThat(target).isEqualTo(Target.WRITERS);
 	}
 
 	@ParameterizedTest
@@ -83,20 +85,63 @@ class BoltAdapterImplIT {
 		"MATCH (n) RETURN n",
 		"MATCH (n:Foo) WHERE n.id = apoc.create.uuid() RETURN n",
 	})
-	void shouldDetectManagedTransactionNeeds(String query) {
+	void shouldDetectNonUpdatingOperators(String query) {
 
-		var adapter = new BoltAdapterImpl(driver);
-		var target = adapter.getQueryTarget(new Neo4jPrincipal("neo4j"), query);
-		assertThat(target).isEqualTo(Neo4jAdapter.Target.READERS);
+		var evaluator = new DefaultQueryEvaluator(driver);
+		var target = evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query).target();
+		assertThat(target).isEqualTo(Target.READERS);
 	}
 
 	@Test
 	void shouldApplyPrincipal() {
 
-		var adapter = new BoltAdapterImpl(driver);
+		var evaluator = new DefaultQueryEvaluator(driver);
 		var principal = new Neo4jPrincipal("foo");
 		assertThatExceptionOfType(ClientException.class)
-			.isThrownBy(() -> adapter.getQueryTarget(principal, "MATCH (n) RETURN n"))
+			.isThrownBy(() -> evaluator.getExecutionRequirements(principal, "MATCH (n) RETURN n"))
 			.withMessage("Cannot impersonate user 'foo'.");
+	}
+
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+		"""
+		USING PERIODIC COMMIT 500 LOAD CSV FROM 'file:///artists.csv' AS line
+		CREATE (:Artist {name: line[1], year: toInteger(line[2])})
+		""",
+		"   USING PERIODIC COMMIT 500 LOAD CSV FROM 'file:///artists.csv' AS line CREATE (:Artist {name: line[1], year: toInteger(line[2])})",
+		"""
+		LOAD CSV FROM 'file:///friends.csv' AS line
+		CALL {
+		  WITH line
+		  CREATE (:PERSON {name: line[1], age: toInteger(line[2])})
+		} IN TRANSACTIONS
+		"""
+	})
+	void shouldDetectImplicitTransactionNeeds(String query) {
+
+		var evaluator = new DefaultQueryEvaluator(driver);
+		var mode = evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query).transactionMode();
+		assertThat(mode).isEqualTo(TransactionMode.IMPLICIT);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+		"""
+		UNWIND [0, 1, 2] AS x
+		CALL {
+		  WITH x
+		  RETURN x * 10 AS y
+		}
+		RETURN x, y
+		""",
+		"CREATE (a:`USING PERIODIC COMMIT `) RETURN a",
+		"CREATE (a:`CALL {WITH WHATEVER} IN TRANSACTIONS`) RETURN a"
+	})
+	void shouldDetectManagedTransactionNeeds(String query) {
+
+		var evaluator = new DefaultQueryEvaluator(driver);
+		var mode = evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query).transactionMode();
+		assertThat(mode).isEqualTo(TransactionMode.MANAGED);
 	}
 }

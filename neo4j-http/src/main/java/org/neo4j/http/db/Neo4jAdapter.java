@@ -15,7 +15,7 @@
  */
 package org.neo4j.http.db;
 
-import java.util.logging.Logger;
+import reactor.core.publisher.Flux;
 
 /**
  * Access to Neo4j via an adapter. In most Spring applications I'm a fan of _not_ using service interfaces but for this
@@ -27,56 +27,6 @@ import java.util.logging.Logger;
  */
 public sealed interface Neo4jAdapter permits AbstractNeo4jAdapter {
 
-	/**
-	 * Shared logger for all adapter instances.
-	 */
-	Logger LOGGER = Logger.getLogger(Neo4jAdapter.class.getName());
-
-	/**
-	 * Basically a copy of the drivers access mode. As there is ongoing debate to rename this we stay independent.
-	 * This access mode is not about write protection or similar, but only
-	 */
-	enum Target {
-		/**
-		 * Can safely be routed to readers.
-		 */
-		READERS,
-		/**
-		 * Requires to be routed to writers.
-		 */
-		WRITERS
-	}
-
-	/**
-	 * Indicator of the transaction mode to use
-	 */
-	enum TransactionMode {
-		/**
-		 * Use managed transactions (aka transaction functions)
-		 */
-		MANAGED,
-		/**
-		 * Use implicit transactions (aka auto commit)
-		 */
-		IMPLICIT
-	}
-
-	/**
-	 * Computes or retrieves the target against a query should be executed.
-	 *
-	 * @param principal The authenticated principal for whom the query is evaluated
-	 * @param query     The string value of a query to be executed, must not be {@literal null} or blank
-	 * @return A target for the query
-	 * @throws IllegalArgumentException if the query can not be dealt with
-	 */
-	Target getQueryTarget(Neo4jPrincipal principal, String query);
-
-	/**
-	 * Computes or retrieves the transaction mode required by the query.
-	 *
-	 * @param principal The authenticated principal for whom the query is evaluated
-	 * @param query     The string value of a query to be executed, must not be {@literal null} or blank
-	 * @return The transaction mode required by the query
-	 */
-	TransactionMode getTransactionMode(Neo4jPrincipal principal, String query);
+	// TODO very much WIP just to get a feels, needs multiple queries and ofc parameters
+	Flux<Wip> stream(Neo4jPrincipal principal, String query);
 }
