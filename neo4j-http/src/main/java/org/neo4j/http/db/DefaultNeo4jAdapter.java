@@ -24,6 +24,7 @@ import org.neo4j.driver.SessionConfig;
 import org.neo4j.driver.reactive.RxQueryRunner;
 import org.neo4j.driver.reactive.RxSession;
 import org.neo4j.driver.util.Pair;
+import org.neo4j.http.config.ApplicationProperties;
 import org.reactivestreams.Publisher;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
@@ -39,11 +40,14 @@ import reactor.util.function.Tuple2;
 @Primary
 class DefaultNeo4jAdapter extends AbstractNeo4jAdapter {
 
+	private final ApplicationProperties applicationProperties;
+
 	private final QueryEvaluator queryEvaluator;
 
 	private final Driver driver;
 
-	DefaultNeo4jAdapter(QueryEvaluator queryEvaluator, Driver driver) {
+	DefaultNeo4jAdapter(ApplicationProperties applicationProperties, QueryEvaluator queryEvaluator, Driver driver) {
+		this.applicationProperties = applicationProperties;
 		this.queryEvaluator = queryEvaluator;
 		this.driver = driver;
 	}
@@ -60,10 +64,11 @@ class DefaultNeo4jAdapter extends AbstractNeo4jAdapter {
 		var theQuery = normalizeQuery(query);
 		return Mono.just(principal)
 			.zipWith(queryEvaluator.getExecutionRequirements(principal, theQuery))
-			.flatMapMany(env -> this.execute0(env, q -> Flux.from(q.run(query).records())).map(r -> {
-				List<Object> content = r.fields().stream().map(Pair::value).map(v -> driver.defaultTypeSystem().MAP().isTypeOf(v) ? v.asMap() : v.asObject()).toList();
-				return new Wip(content);
-			}));
+			.flatMapMany(env -> this.execute0(env, q -> Flux.from(q.run(query).records()))
+				.map(r -> {
+					List<Object> content = r.fields().stream().map(Pair::value).map(v -> driver.defaultTypeSystem().MAP().isTypeOf(v) ? v.asMap() : v.asObject()).toList();
+					return new Wip(content);
+				}));
 	}
 
 	@SuppressWarnings("deprecation")
@@ -76,10 +81,11 @@ class DefaultNeo4jAdapter extends AbstractNeo4jAdapter {
 			.build();
 		var sessionSupplier = Mono.fromCallable(() -> driver.rxSession(sessionConfig));
 
+		Flux<T> flow;
 		if (requirements.transactionMode() == QueryEvaluator.TransactionMode.IMPLICIT) {
-			return Flux.usingWhen(sessionSupplier, f, RxSession::close);
+			flow = Flux.usingWhen(sessionSupplier, f, RxSession::close);
 		} else {
-			return switch (requirements.target()) {
+			flow = switch (requirements.target()) {
 				case WRITERS -> Flux.usingWhen(
 					sessionSupplier,
 					session -> session.writeTransaction(f::apply),
@@ -92,5 +98,6 @@ class DefaultNeo4jAdapter extends AbstractNeo4jAdapter {
 				);
 			};
 		}
+		return flow.limitRate(applicationProperties.fetchSize(), applicationProperties.fetchSize() / 2);
 	}
 }

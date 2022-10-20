@@ -13,25 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.http;
+package org.neo4j.http.config;
 
-import org.neo4j.http.config.ApplicationProperties;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import java.util.Optional;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Main entry point.
  * @author Michael J. Simons
+ * @oundtrack Queen - The Miracle
+ * @param fetchSize The fetch size is important to create proper throughput
  */
-@SpringBootApplication(proxyBeanMethods = false)
-@EnableConfigurationProperties(ApplicationProperties.class)
-public class Application {
+@ConfigurationProperties("org.neo4j.http")
+public record ApplicationProperties(
+	Integer fetchSize
+) {
 
-	/**
-	 * @param args Command line arguments provided to the application.
-	 */
-	public static void main(String[] args) {
-		SpringApplication.run(Application.class, args);
+	public ApplicationProperties {
+		fetchSize = Optional.ofNullable(fetchSize).orElse(2000);
 	}
 }

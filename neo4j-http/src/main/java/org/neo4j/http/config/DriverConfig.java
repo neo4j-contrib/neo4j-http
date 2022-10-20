@@ -13,25 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.http;
+package org.neo4j.http.config;
 
-import org.neo4j.http.config.ApplicationProperties;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.neo4j.ConfigBuilderCustomizer;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 /**
- * Main entry point.
  * @author Michael J. Simons
+ * @oundtrack Queen - The Miracle
  */
-@SpringBootApplication(proxyBeanMethods = false)
-@EnableConfigurationProperties(ApplicationProperties.class)
-public class Application {
+@Configuration(proxyBeanMethods = false)
+public class DriverConfig {
 
 	/**
-	 * @param args Command line arguments provided to the application.
+	 * @return changes to the driver
 	 */
-	public static void main(String[] args) {
-		SpringApplication.run(Application.class, args);
+	@Bean
+	ConfigBuilderCustomizer configBuilderCustomizer(@Autowired ApplicationProperties applicationProperties) {
+		return builder -> builder
+			.withFetchSize(applicationProperties.fetchSize())
+			.withUserAgent("neo4j-http-proxy");
 	}
 }
