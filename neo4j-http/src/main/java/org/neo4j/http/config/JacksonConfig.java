@@ -15,6 +15,7 @@
  */
 package org.neo4j.http.config;
 
+import org.neo4j.http.message.ParameterTypesModule;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,6 +35,7 @@ public class JacksonConfig {
 	public Jackson2ObjectMapperBuilderCustomizer objectMapperBuilderCustomizer() {
 		return builder -> {
 			// Whatever is necessary, added as placeholder
+			builder.modules(new ParameterTypesModule());
 		};
 	}
 }
