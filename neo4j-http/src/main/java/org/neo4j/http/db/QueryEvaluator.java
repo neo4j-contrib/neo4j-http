@@ -69,6 +69,8 @@ interface QueryEvaluator {
 	record ExecutionRequirements(Target target, TransactionMode transactionMode) {
 	}
 
+	Mono<Boolean> isEnterpriseEdition();
+
 	/**
 	 * Retrieves the execution requirements of a query. Most implementations will actually cache it.
 	 *

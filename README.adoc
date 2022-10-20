@@ -48,3 +48,27 @@ Couple of options:
 ** Use blocking api, wrap in completable futures, just use springs executors, will always thread swtich to netty
 ** Use async api, return completable futures, accept independence from driver io & spring
 ** Use async api, configure executors, will be really painful to call, but shared config
+
+**Decision**
+
+We went with the reactive variant… all async approaches are not ideal workarounds.
+
+=== Running
+
+==== With Aura env file
+
+[source,console]
+----
+set -o allexport # <.>
+(source ~/Downloads/credentials-xxx.env;  java -jar neo4j-http/target/neo4j-http-0.0.1-SNAPSHOT-runnable.jar)
+set +o allexport
+----
+<.> Might not be needed in your shell
+
+=== Streaming
+
+requests must use the appropriate accept type
+
+```
+ echo "MATCH (n)  RETURN n" | http -a neo4j:secret localhost:8080/b  Accept:'application/x-ndjson' --stream
+```

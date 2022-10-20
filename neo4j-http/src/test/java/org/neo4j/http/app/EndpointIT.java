@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.http.auth;
+package org.neo4j.http.app;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Path;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 import org.neo4j.driver.AuthTokens;
@@ -27,22 +28,21 @@ import org.neo4j.driver.Logging;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.Neo4jContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.MountableFile;
 
-/**
- * Tests around authentication
- *
- * @author Michael J. Simons
- */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers(disabledWithoutDocker = true)
-class DefaultAuthenticationProviderIT {
+class EndpointIT {
 
 	static final String DEFAULT_NEO4J_IMAGE = System.getProperty("neo4j-http.default-neo4j-image");
 
@@ -73,31 +73,19 @@ class DefaultAuthenticationProviderIT {
 	private TestRestTemplate restTemplate;
 
 	@Test
-	void shouldUseDriverConnection() {
+	void shouldFailProper() {
+
+		var headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		var requestEntity = new HttpEntity<>("MATCH n RETURN n", headers);
 
 		var exchange = this.restTemplate
 			.withBasicAuth("neo4j", neo4j.getAdminPassword())
-			.exchange("/tests/", HttpMethod.GET, null, String.class);
-		assertThat(exchange.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(exchange.getBody()).isEqualTo("index-neo4j");
-	}
-
-	@Test
-	void shouldCheckImposter() {
-
-		var exchange = this.restTemplate
-			.withBasicAuth("jake", "xyz")
-			.exchange("/tests/", HttpMethod.GET, null, String.class);
-		assertThat(exchange.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(exchange.getBody()).isEqualTo("index-jake");
-	}
-
-	@Test
-	void shouldCheckImposterAndFailIfUnknown() {
-
-		var exchange = this.restTemplate
-			.withBasicAuth("jake", "blah")
-			.exchange("/tests/", HttpMethod.GET, null, String.class);
-		assertThat(exchange.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+			.exchange("/b", HttpMethod.POST, requestEntity, new ParameterizedTypeReference<Map<String, String>>() {
+			});
+		assertThat(exchange.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+		assertThat(exchange.getBody())
+			.containsEntry("message", "MATCH n RETURN n")
+			.containsEntry("error", "Invalid query");
 	}
 }

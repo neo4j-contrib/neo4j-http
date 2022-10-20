@@ -13,27 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.http.config;
+package org.neo4j.http.db;
 
-import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import java.io.Serial;
 
 /**
- * Configures Jackson.
+ * Thrown by the {@link QueryEvaluator} in case of a syntax error in a Cypher statement.
  *
  * @author Michael J. Simons
  */
-@Configuration(proxyBeanMethods = false)
-public class JacksonConfig {
+public final class InvalidQueryException extends RuntimeException {
+
+	@Serial
+	private static final long serialVersionUID = -2496202925680143919L;
 
 	/**
-	 * {@return changes to the default, application context wide instance of {@link com.fasterxml.jackson.databind.ObjectMapper}}
+	 * The invalid query, supposed to be the normalized version, without any additional {@literal EXPLAIN}.
 	 */
-	@Bean
-	public Jackson2ObjectMapperBuilderCustomizer objectMapperBuilderCustomizer() {
-		return builder -> {
-			// Whatever is necessary, added as placeholder
-		};
+	private final String query;
+
+	InvalidQueryException(String query) {
+		super("Invalid query:" + query);
+		this.query = query;
+	}
+
+	/**
+	 * {@return the query that caused this exception}
+	 */
+	public String getQuery() {
+		return query;
 	}
 }

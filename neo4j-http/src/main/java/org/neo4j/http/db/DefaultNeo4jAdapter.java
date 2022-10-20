@@ -75,11 +75,14 @@ class DefaultNeo4jAdapter extends AbstractNeo4jAdapter {
 	<T> Flux<T> execute0(Tuple2<Neo4jPrincipal, QueryEvaluator.ExecutionRequirements> env, Function<RxQueryRunner, Publisher<T>> f) {
 
 		var requirements = env.getT2();
-		var sessionConfig = SessionConfig.builder()
-			.withImpersonatedUser(env.getT1().username())
-			.withDefaultAccessMode(requirements.target() == QueryEvaluator.Target.WRITERS ? AccessMode.WRITE : AccessMode.READ)
-			.build();
-		var sessionSupplier = Mono.fromCallable(() -> driver.rxSession(sessionConfig));
+		var sessionSupplier = queryEvaluator.isEnterpriseEdition().
+			flatMap(v -> {
+				var builder = v ? SessionConfig.builder().withImpersonatedUser(env.getT1().username()) : SessionConfig.builder();
+				var sessionConfig = builder
+					.withDefaultAccessMode(requirements.target() == QueryEvaluator.Target.WRITERS ? AccessMode.WRITE : AccessMode.READ)
+					.build();
+				return Mono.fromCallable(() -> driver.rxSession(sessionConfig));
+			});
 
 		Flux<T> flow;
 		if (requirements.transactionMode() == QueryEvaluator.TransactionMode.IMPLICIT) {

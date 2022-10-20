@@ -15,14 +15,18 @@
  */
 package org.neo4j.http.config;
 
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.MetricsAdapter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.neo4j.ConfigBuilderCustomizer;
+import org.springframework.boot.autoconfigure.neo4j.Neo4jProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
  * @author Michael J. Simons
- * @oundtrack Queen - The Miracle
+ * @soundtrack Queen - The Miracle
  */
 @Configuration(proxyBeanMethods = false)
 public class DriverConfig {
@@ -34,6 +38,19 @@ public class DriverConfig {
 	ConfigBuilderCustomizer configBuilderCustomizer(@Autowired ApplicationProperties applicationProperties) {
 		return builder -> builder
 			.withFetchSize(applicationProperties.fetchSize())
+			.withMetricsAdapter(MetricsAdapter.MICROMETER)
+			.withDriverMetrics()
 			.withUserAgent("neo4j-http-proxy");
+	}
+
+	@Bean
+	ApplicationRunner applicationRunner(@Autowired Neo4jProperties properties, @Autowired Driver driver) {
+		return args -> {
+			try {
+				driver.verifyConnectivity();
+			} catch (Exception e) {
+				throw new RuntimeException("Could not verify connection towards " + properties.getUri() + ": " + e.getLocalizedMessage());
+			}
+		};
 	}
 }

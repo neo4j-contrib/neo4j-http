@@ -13,28 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.http;
+package org.neo4j.http.app;
 
-import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 
-import org.neo4j.driver.Driver;
 import org.neo4j.http.db.Neo4jAdapter;
 import org.neo4j.http.db.Neo4jPrincipal;
 import org.neo4j.http.db.Wip;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * The actual HTTP endpoint of this application
@@ -45,41 +39,20 @@ public class Endpoint {
 
 	private final Neo4jAdapter neo4j;
 
-
-	@Autowired
-	Driver driver;
-
+	/**
+	 * @param neo4j all access to Neo4j goes through this adapter.
+	 */
 	public Endpoint(Neo4jAdapter neo4j) {
 		this.neo4j = neo4j;
 	}
 
-	// curl -v  -u neo4j:secret -H "Content-type: application/json" -X POST -d "MATCH (n) RETURN n" localhost:8080/
-	/*
-	@PostMapping
-	String wip(@AuthenticationPrincipal Neo4jPrincipal authentication, @RequestBody String query) {
-		return neo4j.getQueryTarget(authentication, query).name() + ": " + authentication;
+	@PostMapping(value = "/b", produces = MediaType.APPLICATION_JSON_VALUE)
+	Mono<List<Wip>> wip1(@AuthenticationPrincipal Neo4jPrincipal authentication, @RequestBody String query) {
+		return neo4j.stream(authentication, query).collectList();
 	}
-*/
+
 	@PostMapping(value = "/b", produces = MediaType.APPLICATION_NDJSON_VALUE)
 	Flux<Wip> wip2(@AuthenticationPrincipal Neo4jPrincipal authentication, @RequestBody String query) {
 		return neo4j.stream(authentication, query);
-	}
-
-	@Autowired
-	ObjectMapper objectMapper;
-
-	@GetMapping(value = "/a", produces = MediaType.APPLICATION_NDJSON_VALUE)
-	public Flux<Wip> things() {
-		return Flux.range(0, 230)
-			.delayElements(Duration.ofMillis(500))
-			.map(i -> new Wip(List.of("foo", Map.of("a", "b"))));
-	}
-
-	@Autowired
-	TaskExecutor executor;
-
-	@GetMapping("/")
-	public String index() {
-		return "index";
 	}
 }

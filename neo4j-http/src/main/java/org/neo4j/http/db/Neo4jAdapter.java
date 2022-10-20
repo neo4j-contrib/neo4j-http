@@ -27,6 +27,11 @@ import reactor.core.publisher.Flux;
  */
 public sealed interface Neo4jAdapter permits AbstractNeo4jAdapter {
 
-	// TODO very much WIP just to get a feels, needs multiple queries and ofc parameters
+	/**
+	 * Streams the records of the given query
+	 * @param principal The authenticated principal
+	 * @param query The query to execute
+	 * @return A stream of records
+	 */
 	Flux<Wip> stream(Neo4jPrincipal principal, String query);
 }

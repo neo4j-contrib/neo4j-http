@@ -43,6 +43,7 @@ import org.neo4j.cypher.internal.parser.javacc.CypherCharStream;
 import org.neo4j.driver.AccessMode;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.SessionConfig;
+import org.neo4j.driver.exceptions.ClientException;
 import org.neo4j.driver.reactive.RxSession;
 import org.neo4j.driver.summary.Plan;
 import org.neo4j.driver.summary.ResultSummary;
@@ -66,8 +67,21 @@ class DefaultQueryEvaluator implements QueryEvaluator {
 
 	private final Driver driver;
 
+	private final Mono<Boolean> enterpriseEdition;
+
+	@SuppressWarnings("deprecation")
 	DefaultQueryEvaluator(Driver driver) {
 		this.driver = driver;
+		this.enterpriseEdition = Mono.usingWhen(
+			Mono.fromCallable(driver::rxSession),
+			rxSession -> Mono.fromDirect(rxSession.run("CALL dbms.components() YIELD edition RETURN toLower(edition) = 'enterprise'").records()).map(record -> record.get(0).asBoolean()),
+			RxSession::close
+		).cache();
+	}
+
+	@Override
+	public Mono<Boolean> isEnterpriseEdition() {
+		return enterpriseEdition;
 	}
 
 	@Cacheable("executionRequirements")
@@ -92,15 +106,25 @@ class DefaultQueryEvaluator implements QueryEvaluator {
 	@SuppressWarnings("deprecation")
 	private Mono<Target> getQueryTarget(Neo4jPrincipal principal, String query) {
 
-		var sessionConfig = SessionConfig.builder()
-			.withImpersonatedUser(principal.username())
-			.withDefaultAccessMode(AccessMode.READ).build();
-		return
-			Mono.usingWhen(
-				Mono.fromCallable(() -> driver.rxSession(sessionConfig)),
-				session -> Mono.fromDirect(session.run("EXPLAIN " + query).consume()),
-				RxSession::close
-			).map(summary -> getOperators(summary).stream().anyMatch(CypherOperator::isUpdating) ? Target.WRITERS : Target.READERS);
+		var sessionSupplier = isEnterpriseEdition()
+			.flatMap(v -> {
+				var builder = v ? SessionConfig.builder().withImpersonatedUser(principal.username()) : SessionConfig.builder();
+				var sessionConfig = builder
+					.withDefaultAccessMode(AccessMode.READ)
+					.build();
+				return Mono.fromCallable(() -> driver.rxSession(sessionConfig));
+			});
+
+		// Invalid queries will end up here for the first time.
+		// We don't want to add the additional EXPLAIN to the stack and pointers to the wrong parts don't make much sense
+		// In a compressed JSON format either, so we just remove all that stuff with the onErrorMap as last operator
+		return Mono.usingWhen(sessionSupplier, session -> Mono.fromDirect(session.run("EXPLAIN " + query).consume()), RxSession::close)
+			.map(summary -> getOperators(summary).stream().anyMatch(CypherOperator::isUpdating) ? Target.WRITERS : Target.READERS)
+			.onErrorMap(DefaultQueryEvaluator::isSyntaxError, e -> new InvalidQueryException(query));
+	}
+
+	private static boolean isSyntaxError(Throwable e) {
+		return e instanceof ClientException ce && "Neo.ClientError.Statement.SyntaxError".equals(ce.code());
 	}
 
 	/**
@@ -136,7 +160,8 @@ class DefaultQueryEvaluator implements QueryEvaluator {
 		var operator = CypherOperator.__UNKNOWN__;
 		// Can't use the database name here from the summary, as it is broken in the reactive variant, see
 		// https://github.com/neo4j/neo4j-java-driver/issues/1320
-		var operatorType = plan.operatorType().substring(0, plan.operatorType().indexOf('@'));
+		var atIndex = plan.operatorType().indexOf('@'); // Aura doesn't have the DB name in the operators… Just because, I guess.
+		var operatorType = atIndex < 0 ? plan.operatorType() : plan.operatorType().substring(0, atIndex);
 		try {
 			operator = CypherOperator.valueOf(operatorType);
 		} catch (IllegalArgumentException e) {

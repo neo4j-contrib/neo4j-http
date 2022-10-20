@@ -21,14 +21,17 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * @author Michael J. Simons
- * @oundtrack Queen - The Miracle
  * @param fetchSize The fetch size is important to create proper throughput
+ * @soundtrack Queen - The Miracle
  */
 @ConfigurationProperties("org.neo4j.http")
 public record ApplicationProperties(
 	Integer fetchSize
 ) {
 
+	/**
+	 * @param fetchSize defaults to 2000 if not set
+	 */
 	public ApplicationProperties {
 		fetchSize = Optional.ofNullable(fetchSize).orElse(2000);
 	}
