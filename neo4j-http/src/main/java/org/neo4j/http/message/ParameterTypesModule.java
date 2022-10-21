@@ -48,7 +48,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeType;
 public class ParameterTypesModule extends SimpleModule {
 
 	@Serial
-	private static final long serialVersionUID = 4711L;
+	private static final long serialVersionUID = -8923944495784632050L;
 
 	public ParameterTypesModule() {
 		this.addDeserializer(Object.class, new ParameterDeserializer());
@@ -102,15 +102,15 @@ public class ParameterTypesModule extends SimpleModule {
 
 	private static class ParameterConverter {
 		private static final Map<String, Function<Object, Object>> CONVERTERS = Map.of(
-			"LocalDate", value -> LocalDate.parse((String) value, DateTimeFormatter.ISO_LOCAL_DATE),
-			"OffsetTime", value -> OffsetTime.parse((String) value, DateTimeFormatter.ISO_OFFSET_TIME),
-			"LocalTime", value -> LocalTime.parse((String) value, DateTimeFormatter.ISO_LOCAL_TIME),
-			"ZonedDateTime", value -> ZonedDateTime.parse((String) value, DateTimeFormatter.ISO_ZONED_DATE_TIME),
-			"LocalDateTime", value -> LocalDateTime.parse((String) value, DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-			"Duration", value -> Duration.parse((String) value),
-			"Period", value -> Period.parse((String) value),
-			"Point", value -> PointParameter.of((String) value),
-			"Byte[]", value -> parseByteString((String) value)
+			CypherTypenames.Date.getValue(), value -> LocalDate.parse((String) value, DateTimeFormatter.ISO_LOCAL_DATE),
+			CypherTypenames.Time.getValue(), value -> OffsetTime.parse((String) value, DateTimeFormatter.ISO_OFFSET_TIME),
+			CypherTypenames.LocalTime.getValue(), value -> LocalTime.parse((String) value, DateTimeFormatter.ISO_LOCAL_TIME),
+			CypherTypenames.DateTime.getValue(), value -> ZonedDateTime.parse((String) value, DateTimeFormatter.ISO_ZONED_DATE_TIME),
+			CypherTypenames.LocalDateTime.getValue(), value -> LocalDateTime.parse((String) value, DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+			CypherTypenames.Duration.getValue(), value -> Duration.parse((String) value),
+			CypherTypenames.Period.getValue(), value -> Period.parse((String) value),
+			CypherTypenames.Point.getValue(), value -> PointParameter.of((String) value),
+			CypherTypenames.ByteArray.getValue(), value -> parseByteString((String) value)
 		);
 
 
