@@ -33,12 +33,10 @@ import java.time.OffsetTime;
 import java.time.Period;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * A module that understands the <a href="https://neo4j.com/docs/java-manual/current/cypher-workflow/#java-driver-type-mapping">supported value types</a>
@@ -124,11 +122,11 @@ public class ParameterTypesModule extends SimpleModule {
 		private static byte[] parseByteString(String rawInput) {
 			var input = rawInput.replaceAll("\s*", "");
 			int inputLength = input.length();
-			var result = new byte[inputLength/2];
+			var result = new byte[inputLength / 2];
 
-			for (int i = 0; i < inputLength; i+=2) {
-				result[i/2] = (byte) ((Character.digit(input.charAt(i), 16) << 4) +
-						Character.digit(input.charAt(i+1), 16));
+			for (int i = 0; i < inputLength; i += 2) {
+				result[i / 2] = (byte) ((Character.digit(input.charAt(i), 16) << 4)
+						+ Character.digit(input.charAt(i + 1), 16));
 			}
 
 			return result;
