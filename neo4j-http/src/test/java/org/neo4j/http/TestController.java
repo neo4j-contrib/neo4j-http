@@ -16,8 +16,11 @@
 package org.neo4j.http;
 
 import org.neo4j.http.db.Neo4jPrincipal;
+import org.neo4j.http.message.CypherRequest;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,5 +34,13 @@ public class TestController {
 	@GetMapping("/")
 	public String index(@AuthenticationPrincipal Neo4jPrincipal principal) {
 		return "index-" + principal.getName();
+	}
+
+	@PostMapping("/statementrequest")
+	public String index(@RequestBody CypherRequest request) {
+		CypherRequest.StatementAndParameter statementAndParameter = request.statements().get(0);
+		String statement = statementAndParameter.statement();
+		String parameters = statementAndParameter.parameters().toString();
+		return statement + ":" + parameters;
 	}
 }
