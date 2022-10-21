@@ -83,13 +83,13 @@ public class ParameterTypesModule extends SimpleModule {
 					return jsonParser.getCodec().treeToValue(tree, List.class);
 				}
 				if (tree.getNodeType().equals(JsonNodeType.OBJECT)) {
-					JsonNode customType = tree.get("type");
+					JsonNode customType = tree.get(Fieldnames.CYPHER_TYPE);
 					if (customType != null) {
 						String customTypeName = customType.asText();
 						if (!ParameterConverter.canConvert(customTypeName)) {
 							throw new IllegalArgumentException("Cannot convert %s into a known type. Convertible types are %s".formatted(customTypeName, ParameterConverter.CONVERTERS.keySet()));
 						}
-						ValueNode typeValue = tree.get("value").require();
+						ValueNode typeValue = tree.get(Fieldnames.CYPHER_VALUE).require();
 						return ParameterConverter.CONVERTER.apply(customTypeName, typeValue);
 					}
 
@@ -102,16 +102,16 @@ public class ParameterTypesModule extends SimpleModule {
 	}
 
 	private static class ParameterConverter {
-		private static final Map<String, Function<Object, Object>> CONVERTERS = Map.of(
-			CypherTypenames.Date.getValue(), value -> LocalDate.parse((String) value, DateTimeFormatter.ISO_LOCAL_DATE),
-			CypherTypenames.Time.getValue(), value -> OffsetTime.parse((String) value, DateTimeFormatter.ISO_OFFSET_TIME),
-			CypherTypenames.LocalTime.getValue(), value -> LocalTime.parse((String) value, DateTimeFormatter.ISO_LOCAL_TIME),
-			CypherTypenames.DateTime.getValue(), value -> ZonedDateTime.parse((String) value, DateTimeFormatter.ISO_ZONED_DATE_TIME),
-			CypherTypenames.LocalDateTime.getValue(), value -> LocalDateTime.parse((String) value, DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-			CypherTypenames.Duration.getValue(), value -> Duration.parse((String) value),
-			CypherTypenames.Period.getValue(), value -> Period.parse((String) value),
-			CypherTypenames.Point.getValue(), value -> PointParameter.of((String) value),
-			CypherTypenames.ByteArray.getValue(), value -> parseByteString((String) value)
+		private static final Map<String, Function<String, Object>> CONVERTERS = Map.of(
+			CypherTypenames.Date.getValue(), value -> LocalDate.parse(value, DateTimeFormatter.ISO_LOCAL_DATE),
+			CypherTypenames.Time.getValue(), value -> OffsetTime.parse(value, DateTimeFormatter.ISO_OFFSET_TIME),
+			CypherTypenames.LocalTime.getValue(), value -> LocalTime.parse(value, DateTimeFormatter.ISO_LOCAL_TIME),
+			CypherTypenames.DateTime.getValue(), value -> ZonedDateTime.parse(value, DateTimeFormatter.ISO_ZONED_DATE_TIME),
+			CypherTypenames.LocalDateTime.getValue(), value -> LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+			CypherTypenames.Duration.getValue(), Duration::parse,
+			CypherTypenames.Period.getValue(), Period::parse,
+			CypherTypenames.Point.getValue(), PointParameter::of,
+			CypherTypenames.ByteArray.getValue(), ParameterConverter::parseByteString
 		);
 
 

@@ -90,7 +90,7 @@ public class CypherRequestConversionIT {
 						"statements": [
 							{
 								"statement": "MATCH (n) RETURN n",
-								"parameters": {"someDate": {"type": "LocalDate", "value": "2022-10-21"}}
+								"parameters": {"someDate": {"$type": "Date", "_value": "2022-10-21"}}
 							}
 						]
 				}""")
@@ -114,7 +114,7 @@ public class CypherRequestConversionIT {
 						"statements": [
 							{
 								"statement": "MATCH (n) RETURN n",
-								"parameters": {"someDate": {"type": "LocalDate", "value": "2022-21-10"}}
+								"parameters": {"someDate": {"$type": "Date", "_value": "2022-21-10"}}
 							}
 						]
 				}""")
@@ -136,7 +136,7 @@ public class CypherRequestConversionIT {
 						"statements": [
 							{
 								"statement": "MATCH (n) RETURN n",
-								"parameters": {"someDate": {"type": "LocalDate", "value": true}}
+								"parameters": {"someDate": {"$type": "Date", "_value": true}}
 							}
 						]
 				}""")

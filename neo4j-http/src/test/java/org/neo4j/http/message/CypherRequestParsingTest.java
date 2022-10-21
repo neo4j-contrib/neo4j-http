@@ -151,31 +151,31 @@ class CypherRequestParsingTest {
 
 	private static Stream<Arguments> complexTypesParams() {
 		return Stream.of(
-				Arguments.of("\"LocalDate\"", "\"2022-10-18\"", LocalDate.of(2022, 10, 18)),
-				Arguments.of("\"OffsetTime\"", "\"13:37:11+02:00\"", OffsetTime.of(LocalTime.of(13, 37, 11), ZoneOffset.ofHours(2))),
-				Arguments.of("\"LocalTime\"", "\"13:37:11\"", LocalTime.of(13, 37, 11)),
-				Arguments.of("\"ZonedDateTime\"", "\"2022-10-18T13:37:11+02:00[Europe/Paris]\"", ZonedDateTime.of(LocalDate.of(2022, 10, 18), LocalTime.of(13, 37, 11), ZoneId.of("Europe/Paris"))),
-				Arguments.of("\"LocalDateTime\"", "\"2022-10-18T13:37:11\"", LocalDateTime.of(LocalDate.of(2022, 10, 18), LocalTime.of(13, 37, 11))),
-				Arguments.of("\"Duration\"", "\"PT23H21M\"", Duration.ofHours(23).plusMinutes(21)),
-				Arguments.of("\"Period\"", "\"P20D\"", Period.ofDays(20)),
-				Arguments.of("\"Point\"", "\"SRID=4979;POINT(12.994823 55.612191 2)\"", new PointParameter(4979, 12.994823, 55.612191, 2)),
-				Arguments.of("\"Point\"", "\"SRID=4326;POINT(12.994823 55.612191)\"", new PointParameter(4326, 12.994823, 55.612191, 0)),
-				Arguments.of("\"Byte[]\"", "\"00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10\"", new byte[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16})
+				Arguments.of(CypherTypenames.Date, "2022-10-18", LocalDate.of(2022, 10, 18)),
+				Arguments.of(CypherTypenames.Time, "13:37:11+02:00", OffsetTime.of(LocalTime.of(13, 37, 11), ZoneOffset.ofHours(2))),
+				Arguments.of(CypherTypenames.LocalTime, "13:37:11", LocalTime.of(13, 37, 11)),
+				Arguments.of(CypherTypenames.DateTime, "2022-10-18T13:37:11+02:00[Europe/Paris]", ZonedDateTime.of(LocalDate.of(2022, 10, 18), LocalTime.of(13, 37, 11), ZoneId.of("Europe/Paris"))),
+				Arguments.of(CypherTypenames.LocalDateTime, "2022-10-18T13:37:11", LocalDateTime.of(LocalDate.of(2022, 10, 18), LocalTime.of(13, 37, 11))),
+				Arguments.of(CypherTypenames.Duration, "PT23H21M", Duration.ofHours(23).plusMinutes(21)),
+				Arguments.of(CypherTypenames.Period, "P20D", Period.ofDays(20)),
+				Arguments.of(CypherTypenames.Point, "SRID=4979;POINT(12.994823 55.612191 2)", new PointParameter(4979, 12.994823, 55.612191, 2)),
+				Arguments.of(CypherTypenames.Point, "SRID=4326;POINT(12.994823 55.612191)", new PointParameter(4326, 12.994823, 55.612191, 0)),
+				Arguments.of(CypherTypenames.ByteArray, "00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10", new byte[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16})
 		);
 	}
 
 	@ParameterizedTest
 	@MethodSource("complexTypesParams")
-	void marshalComplexTypes(String typeName, Object value, Object expected) throws JsonProcessingException {
+	void marshalComplexTypes(CypherTypenames typeName, Object value, Object expected) throws JsonProcessingException {
 		var payload = """
 				{
 					"statements": [
 						{
 							"statement": "complex types",
-							"parameters": {"value": {"type": %s, "value": %s}, "someSimpleTypeValue": "Hello"}
+							"parameters": {"value": {"$type": "%s", "_value": "%s"}, "someSimpleTypeValue": "Hello"}
 						}
 					]
-				}""".formatted(typeName, value);
+				}""".formatted(typeName.getValue(), value);
 
 		var cypherRequest = objectMapper.readValue(payload, CypherRequest.class);
 
@@ -185,16 +185,16 @@ class CypherRequestParsingTest {
 
 	@ParameterizedTest
 	@MethodSource("complexTypesParams")
-	void marshalComplexTypesInList(String typeName, Object value, Object expected) throws JsonProcessingException {
+	void marshalComplexTypesInList(CypherTypenames typeName, Object value, Object expected) throws JsonProcessingException {
 		var payload = """
 				{
 					"statements": [
 						{
 							"statement": "complex types",
-							"parameters": {"value": [{"type": %s, "value": %s}], "someOtherContainer": ["hellO"]}
+							"parameters": {"value": [{"$type": "%s", "_value": "%s"}], "someOtherContainer": ["hellO"]}
 						}
 					]
-				}""".formatted(typeName, value);
+				}""".formatted(typeName.getValue(), value);
 
 		var cypherRequest = objectMapper.readValue(payload, CypherRequest.class);
 
@@ -204,16 +204,16 @@ class CypherRequestParsingTest {
 
 	@ParameterizedTest
 	@MethodSource("complexTypesParams")
-	void marshalComplexTypesInMap(String typeName, Object value, Object expected) throws JsonProcessingException {
+	void marshalComplexTypesInMap(CypherTypenames typeName, Object value, Object expected) throws JsonProcessingException {
 		var payload = """
 				{
 					"statements": [
 						{
 							"statement": "complex types",
-							"parameters": {"value": {"nestedObject": {"type": %s, "value": %s}}, "someOtherContainer": ["hellO"]}
+							"parameters": {"value": {"nestedObject": {"$type": "%s", "_value": "%s"}}, "someOtherContainer": ["hellO"]}
 						}
 					]
-				}""".formatted(typeName, value);
+				}""".formatted(typeName.getValue(), value);
 
 		var cypherRequest = objectMapper.readValue(payload, CypherRequest.class);
 
@@ -223,16 +223,16 @@ class CypherRequestParsingTest {
 
 	@ParameterizedTest
 	@MethodSource("complexTypesParams")
-	void marshalComplexTypesInListOfMap(String typeName, Object value, Object expected) throws JsonProcessingException {
+	void marshalComplexTypesInListOfMap(CypherTypenames typeName, Object value, Object expected) throws JsonProcessingException {
 		var payload = """
 				{
 					"statements": [
 						{
 							"statement": "complex types",
-							"parameters": {"value": [{"nestedObject": {"type": %s, "value": %s}}], "someOtherContainer": ["hellO"]}
+							"parameters": {"value": [{"nestedObject": {"$type": "%s", "_value": "%s"}}], "someOtherContainer": ["hellO"]}
 						}
 					]
-				}""".formatted(typeName, value);
+				}""".formatted(typeName.getValue(), value);
 
 		var cypherRequest = objectMapper.readValue(payload, CypherRequest.class);
 
@@ -247,7 +247,7 @@ class CypherRequestParsingTest {
 					"statements": [
 						{
 							"statement": "complex types",
-							"parameters": {"value": {"type":"Unknown", "value":"something"}}
+							"parameters": {"value": {"$type":"Unknown", "_value":"something"}}
 						}
 					]
 				}""";
@@ -266,7 +266,7 @@ class CypherRequestParsingTest {
 					"statements": [
 						{
 							"statement": "complex types",
-							"parameters": {"value": {"type":"LocalDate", "value":true}}
+							"parameters": {"value": {"$type":"Date", "_value":true}}
 						}
 					]
 				}""";
@@ -274,7 +274,7 @@ class CypherRequestParsingTest {
 		assertThatExceptionOfType(JsonMappingException.class).isThrownBy(() -> objectMapper.readValue(payload, CypherRequest.class))
 				.havingRootCause()
 				.isInstanceOf(IllegalArgumentException.class)
-				.withMessage("Value true (type BOOLEAN) for type LocalDate has to be String-based.");
+				.withMessage("Value true (type BOOLEAN) for type Date has to be String-based.");
 
 	}
 
