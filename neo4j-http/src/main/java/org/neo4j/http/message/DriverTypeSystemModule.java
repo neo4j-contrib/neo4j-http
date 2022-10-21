@@ -120,24 +120,24 @@ public final class DriverTypeSystemModule extends SimpleModule {
 
 			if (value == null || value.isNull()) {
 				json.writeNull();
-			} else if (typeSystem.BOOLEAN().isTypeOf(value)) {
+			} else if (value.hasType(typeSystem.BOOLEAN())) {
 				json.writeBoolean(value.asBoolean());
-			} else if (typeSystem.STRING().isTypeOf(value)) {
+			} else if (value.hasType(typeSystem.STRING())) {
 				json.writeString(value.asString());
-			} else if (typeSystem.INTEGER().isTypeOf(value)) {
+			} else if (value.hasType(typeSystem.INTEGER())) {
 				json.writeNumber(value.asLong());
-			} else if (typeSystem.FLOAT().isTypeOf(value)) {
+			} else if (value.hasType(typeSystem.FLOAT())) {
 				try {
 					json.writeNumber(value.asFloat());
 				} catch (LossyCoercion e) {
 					json.writeNumber(value.asDouble());
 				}
-			} else if (typeSystem.DATE().isTypeOf(value)) {
+			} else if (value.hasType(typeSystem.DATE())) {
 				json.writeStartObject();
 				json.writeStringField(Fieldnames.CYPHER_TYPE, CypherTypenames.Date.getValue());
 				json.writeStringField(Fieldnames.CYPHER_VALUE, DateTimeFormatter.ISO_LOCAL_DATE.format(value.asLocalDate()));
 				json.writeEndObject();
-			} else if (typeSystem.NODE().isTypeOf(value)) {
+			} else if (value.hasType(typeSystem.NODE())) {
 
 				var node = value.asNode();
 				if (serializerProvider.getActiveView() == Views.Default.class) {
