@@ -21,6 +21,8 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
+import com.fasterxml.jackson.databind.node.TextNode;
+import com.fasterxml.jackson.databind.node.ValueNode;
 import org.springframework.boot.jackson.JsonObjectDeserializer;
 
 import java.io.IOException;
@@ -87,7 +89,7 @@ public class ParameterTypesModule extends SimpleModule {
 						if (!ParameterConverter.canConvert(customTypeName)) {
 							throw new IllegalArgumentException("Cannot convert %s into a known type. Convertible types are %s".formatted(customTypeName, ParameterConverter.CONVERTERS.keySet()));
 						}
-						String typeValue = tree.get("value").asText();
+						ValueNode typeValue = tree.get("value").require();
 						return ParameterConverter.CONVERTER.apply(customTypeName, typeValue);
 					}
 
@@ -113,7 +115,12 @@ public class ParameterTypesModule extends SimpleModule {
 		);
 
 
-		private final static BiFunction<String, Object, Object> CONVERTER = (typeName, value) -> CONVERTERS.get(typeName).apply(value);
+		private final static BiFunction<String, ValueNode, Object> CONVERTER = (typeName, value) -> {
+			if (value instanceof TextNode textNode) {
+				return CONVERTERS.get(typeName).apply(textNode.asText());
+			}
+			throw new IllegalArgumentException("Value %s (type %s) for type %s has to be String-based.".formatted(value, value.getNodeType(), typeName));
+		};
 
 		private static boolean canConvert(String type) {
 			return CONVERTERS.containsKey(type);

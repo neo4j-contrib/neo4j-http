@@ -252,9 +252,29 @@ class CypherRequestParsingTest {
 					]
 				}""";
 
-		// todo best would be to avoid Jackson exception wrapping but right now I have no clue how to do this on module or deserializer level.
 		assertThatExceptionOfType(JsonMappingException.class).isThrownBy(() -> objectMapper.readValue(payload, CypherRequest.class))
-				.withRootCauseInstanceOf(IllegalArgumentException.class);
+				.havingRootCause()
+				.isInstanceOf(IllegalArgumentException.class)
+				.withMessageStartingWith("Cannot convert Unknown into a known type. Convertible types are ");
+
+	}
+
+	@Test
+	void throwExceptionOnUnsupportedComplexTypeValue() {
+		var payload = """
+				{
+					"statements": [
+						{
+							"statement": "complex types",
+							"parameters": {"value": {"type":"LocalDate", "value":true}}
+						}
+					]
+				}""";
+
+		assertThatExceptionOfType(JsonMappingException.class).isThrownBy(() -> objectMapper.readValue(payload, CypherRequest.class))
+				.havingRootCause()
+				.isInstanceOf(IllegalArgumentException.class)
+				.withMessage("Value true (type BOOLEAN) for type LocalDate has to be String-based.");
 
 	}
 

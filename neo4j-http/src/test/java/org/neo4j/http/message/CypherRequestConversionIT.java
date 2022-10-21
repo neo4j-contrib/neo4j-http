@@ -18,6 +18,7 @@ package org.neo4j.http.message;
 import org.junit.jupiter.api.Test;
 import org.neo4j.driver.Driver;
 import org.neo4j.http.app.Endpoint;
+import org.neo4j.http.config.JacksonConfig;
 import org.neo4j.http.db.Neo4jPrincipal;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
@@ -42,7 +43,7 @@ import java.util.List;
  */
 // We have to exclude the Endpoint because we cannot mock the sealed Neo4jAdapter that is needed there.
 @WebFluxTest(excludeFilters = {@ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {Endpoint.class})})
-@Import(CypherRequestConversionIT.Config.class)
+@Import({CypherRequestConversionIT.Config.class, JacksonConfig.class})
 public class CypherRequestConversionIT {
 
 	@MockBean
@@ -96,7 +97,51 @@ public class CypherRequestConversionIT {
 				.exchange()
 				.expectStatus().isOk()
 				.expectBody(String.class)
-				.isEqualTo("MATCH (n) RETURN n:{someDate={type=LocalDate, value=2022-10-21}}");
+				.isEqualTo("MATCH (n) RETURN n:{someDate=2022-10-21}");
+	}
+
+	@Test
+	void invalidRequestTypeFormat() {
+		client.mutateWith(SecurityMockServerConfigurers.csrf())
+				.post()
+				.uri("/tests/statementrequest")
+				.headers((headers) -> {
+					headers.setBasicAuth("some", "one");
+					headers.setContentType(MediaType.APPLICATION_JSON);
+				})
+				.bodyValue("""
+					{
+						"statements": [
+							{
+								"statement": "MATCH (n) RETURN n",
+								"parameters": {"someDate": {"type": "LocalDate", "value": "2022-21-10"}}
+							}
+						]
+				}""")
+				.exchange()
+				.expectStatus().isBadRequest();
+	}
+
+	@Test
+	void invalidRequestTypeValue() {
+		client.mutateWith(SecurityMockServerConfigurers.csrf())
+				.post()
+				.uri("/tests/statementrequest")
+				.headers((headers) -> {
+					headers.setBasicAuth("some", "one");
+					headers.setContentType(MediaType.APPLICATION_JSON);
+				})
+				.bodyValue("""
+					{
+						"statements": [
+							{
+								"statement": "MATCH (n) RETURN n",
+								"parameters": {"someDate": {"type": "LocalDate", "value": true}}
+							}
+						]
+				}""")
+				.exchange()
+				.expectStatus().isBadRequest();
 	}
 
 	static class Config {
