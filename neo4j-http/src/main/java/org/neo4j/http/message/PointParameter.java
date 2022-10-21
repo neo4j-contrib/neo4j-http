@@ -40,6 +40,10 @@ public record PointParameter(int srid, double x, double y, double z) implements 
 
 	private final static Pattern WKT_PATTERN = Pattern.compile("SRID=(\\d+);\\s*POINT\\(\\s*(\\S+)\\s+(\\S+)\\s*(\\S?)\\)");
 
+	/**
+	 * @param input some input
+	 * @return a point parameter
+	 */
 	public static PointParameter of(String input) {
 		var matcher = WKT_PATTERN.matcher(input);
 

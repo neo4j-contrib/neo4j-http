@@ -28,9 +28,10 @@ final class Fieldnames {
 	static final String CYPHER_TYPE = "$type";
 	static final String CYPHER_VALUE = "_value";
 	static final String LABELS = "_labels";
+	static final String ID = "_id";
+	static final String ELEMENT_ID = "_element_id";
 	static final String RELATIONSHIP_TYPE = "_type";
 	static final String PROPERTIES = "_props";
-
 
 	private Fieldnames() {
 	}

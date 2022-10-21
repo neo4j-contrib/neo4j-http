@@ -15,6 +15,8 @@
  */
 package org.neo4j.http.db;
 
+import org.neo4j.driver.Record;
+
 import reactor.core.publisher.Flux;
 
 /**
@@ -33,5 +35,5 @@ public sealed interface Neo4jAdapter permits AbstractNeo4jAdapter {
 	 * @param query The query to execute
 	 * @return A stream of records
 	 */
-	Flux<Wip> stream(Neo4jPrincipal principal, String query);
+	Flux<Record> stream(Neo4jPrincipal principal, String query);
 }

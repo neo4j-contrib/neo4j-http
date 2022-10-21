@@ -51,6 +51,9 @@ public class ParameterTypesModule extends SimpleModule {
 	@Serial
 	private static final long serialVersionUID = 6857894267001773659L;
 
+	/**
+	 * Default instance
+	 */
 	public ParameterTypesModule() {
 		this.addDeserializer(Object.class, new ParameterDeserializer());
 	}

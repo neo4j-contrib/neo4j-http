@@ -15,7 +15,10 @@
  */
 package org.neo4j.http.config;
 
+import org.neo4j.driver.Driver;
+import org.neo4j.http.message.DriverTypeSystemModule;
 import org.neo4j.http.message.ParameterTypesModule;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,13 +32,15 @@ import org.springframework.context.annotation.Configuration;
 public class JacksonConfig {
 
 	/**
-	 * {@return changes to the default, application context wide instance of {@link com.fasterxml.jackson.databind.ObjectMapper}}
+	 * @param driver needed to retrieve the typesystem
+	 * @return changes to the default, application context wide instance of {@link com.fasterxml.jackson.databind.ObjectMapper}
 	 */
 	@Bean
-	public Jackson2ObjectMapperBuilderCustomizer objectMapperBuilderCustomizer() {
+	public Jackson2ObjectMapperBuilderCustomizer objectMapperBuilderCustomizer(@Autowired Driver driver) {
 		return builder -> {
 			// Whatever is necessary, added as placeholder
 			builder.modules(new ParameterTypesModule());
+			builder.modules(new DriverTypeSystemModule(driver.defaultTypeSystem()));
 		};
 	}
 }

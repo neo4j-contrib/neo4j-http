@@ -17,9 +17,9 @@ package org.neo4j.http.app;
 
 import java.util.List;
 
+import org.neo4j.driver.Record;
 import org.neo4j.http.db.Neo4jAdapter;
 import org.neo4j.http.db.Neo4jPrincipal;
-import org.neo4j.http.db.Wip;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.annotation.JsonView;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -46,13 +47,14 @@ public class Endpoint {
 		this.neo4j = neo4j;
 	}
 
+	@JsonView(Views.Default.class)
 	@PostMapping(value = "/b", produces = MediaType.APPLICATION_JSON_VALUE)
-	Mono<List<Wip>> wip1(@AuthenticationPrincipal Neo4jPrincipal authentication, @RequestBody String query) {
+	Mono<List<Record>> wip1(@AuthenticationPrincipal Neo4jPrincipal authentication, @RequestBody String query) {
 		return neo4j.stream(authentication, query).collectList();
 	}
 
 	@PostMapping(value = "/b", produces = MediaType.APPLICATION_NDJSON_VALUE)
-	Flux<Wip> wip2(@AuthenticationPrincipal Neo4jPrincipal authentication, @RequestBody String query) {
+	Flux<Record> wip2(@AuthenticationPrincipal Neo4jPrincipal authentication, @RequestBody String query) {
 		return neo4j.stream(authentication, query);
 	}
 }

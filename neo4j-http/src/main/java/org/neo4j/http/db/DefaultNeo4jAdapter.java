@@ -15,15 +15,14 @@
  */
 package org.neo4j.http.db;
 
-import java.util.List;
 import java.util.function.Function;
 
 import org.neo4j.driver.AccessMode;
 import org.neo4j.driver.Driver;
+import org.neo4j.driver.Record;
 import org.neo4j.driver.SessionConfig;
 import org.neo4j.driver.reactive.RxQueryRunner;
 import org.neo4j.driver.reactive.RxSession;
-import org.neo4j.driver.util.Pair;
 import org.neo4j.http.config.ApplicationProperties;
 import org.reactivestreams.Publisher;
 import org.springframework.context.annotation.Primary;
@@ -59,16 +58,12 @@ class DefaultNeo4jAdapter extends AbstractNeo4jAdapter {
 	@Override
 	// Redundant suppression is a lie… Only IntelliJ thinks so…
 	@SuppressWarnings({"deprecation", "RedundantSuppression"})
-	public Flux<Wip> stream(Neo4jPrincipal principal, String query) {
+	public Flux<Record> stream(Neo4jPrincipal principal, String query) {
 
 		var theQuery = normalizeQuery(query);
 		return Mono.just(principal)
 			.zipWith(queryEvaluator.getExecutionRequirements(principal, theQuery))
-			.flatMapMany(env -> this.execute0(env, q -> Flux.from(q.run(query).records()))
-				.map(r -> {
-					List<Object> content = r.fields().stream().map(Pair::value).map(v -> driver.defaultTypeSystem().MAP().isTypeOf(v) ? v.asMap() : v.asObject()).toList();
-					return new Wip(content);
-				}));
+			.flatMapMany(env -> this.execute0(env, q -> Flux.from(q.run(query).records())));
 	}
 
 	@SuppressWarnings("deprecation")

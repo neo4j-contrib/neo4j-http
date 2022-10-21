@@ -18,11 +18,14 @@ package org.neo4j.http.message;
 import java.io.IOException;
 import java.io.Serial;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
+import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.exceptions.value.LossyCoercion;
-import org.neo4j.driver.internal.types.InternalTypeSystem;
+import org.neo4j.driver.types.Entity;
 import org.neo4j.driver.types.TypeSystem;
+import org.neo4j.driver.util.Pair;
 import org.neo4j.http.app.Views;
 
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -30,82 +33,157 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
-final class DriverTypeSystemModule extends SimpleModule {
+/**
+ * Jackson module to deal with Java driver types.
+ *
+ * @author Michael J. Simons
+ */
+public final class DriverTypeSystemModule extends SimpleModule {
 
 	@Serial
 	private static final long serialVersionUID = -6600328341718439212L;
 
-	DriverTypeSystemModule() {
-		this.addSerializer(Value.class, new NonEntityValueSerializer(InternalTypeSystem.TYPE_SYSTEM));
+	/**
+	 * New type system delegating to the drivers {@link TypeSystem}.
+	 *
+	 * @param typeSystem Retrieved from the driver
+	 */
+	public DriverTypeSystemModule(TypeSystem typeSystem) {
+		this.addSerializer(Record.class, new RecordSerializer(typeSystem));
+		this.addSerializer(Value.class, new ValueSerializer(typeSystem));
+	}
+
+	static final class RecordSerializer extends StdSerializer<Record> {
+
+
+		@Serial
+		private static final long serialVersionUID = 8594507829627684699L;
+
+		private final TypeSystem typeSystem;
+
+		RecordSerializer(TypeSystem typeSystem) {
+			super(Record.class);
+			this.typeSystem = typeSystem;
+		}
+
+		@SuppressWarnings("deprecation")
+		@Override
+		public void serialize(Record value, JsonGenerator json, SerializerProvider serializerProvider) throws IOException {
+
+			var valueSerializer = serializerProvider.findValueSerializer(Value.class);
+
+			json.writeStartObject();
+			if (serializerProvider.getActiveView() == Views.Default.class) {
+				json.writeArrayFieldStart("row");
+				for (Value column : value.values()) {
+					valueSerializer.serialize(column, json, serializerProvider);
+				}
+				json.writeEndArray();
+
+				json.writeArrayFieldStart("meta");
+				for (Value column : value.values()) {
+					if (column.hasType(typeSystem.NODE()) || column.hasType(typeSystem.RELATIONSHIP())) {
+						json.writeStartObject();
+						json.writeNumberField("id", column.asEntity().id());
+						json.writeStringField("type", column.type().name().toLowerCase(Locale.ROOT));
+						json.writeEndObject();
+					} else {
+						json.writeNull();
+					}
+				}
+				json.writeEndArray();
+			} else {
+				for (Pair<String, Value> pair : value.fields()) {
+					json.writeFieldName(pair.key());
+					valueSerializer.serialize(pair.value(), json, serializerProvider);
+				}
+			}
+			json.writeEndObject();
+		}
 	}
 
 
-	static final class NonEntityValueSerializer extends StdSerializer<Value> {
+	static final class ValueSerializer extends StdSerializer<Value> {
 
 		@Serial
 		private static final long serialVersionUID = -5914605165093400044L;
 
 		private final TypeSystem typeSystem;
 
-
-		NonEntityValueSerializer(TypeSystem typeSystem) {
+		ValueSerializer(TypeSystem typeSystem) {
 			super(Value.class);
 			this.typeSystem = typeSystem;
 		}
 
 		@Override
-		public void serialize(Value value, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
+		public void serialize(Value value, JsonGenerator json, SerializerProvider serializerProvider) throws IOException {
 
 			if (value == null || value.isNull()) {
-				jsonGenerator.writeNull();
+				json.writeNull();
 			} else if (typeSystem.BOOLEAN().isTypeOf(value)) {
-				jsonGenerator.writeBoolean(value.asBoolean());
+				json.writeBoolean(value.asBoolean());
 			} else if (typeSystem.STRING().isTypeOf(value)) {
-				jsonGenerator.writeString(value.asString());
+				json.writeString(value.asString());
 			} else if (typeSystem.INTEGER().isTypeOf(value)) {
-				jsonGenerator.writeNumber(value.asLong());
+				json.writeNumber(value.asLong());
 			} else if (typeSystem.FLOAT().isTypeOf(value)) {
 				try {
-					jsonGenerator.writeNumber(value.asFloat());
+					json.writeNumber(value.asFloat());
 				} catch (LossyCoercion e) {
-					jsonGenerator.writeNumber(value.asDouble());
+					json.writeNumber(value.asDouble());
 				}
 			} else if (typeSystem.DATE().isTypeOf(value)) {
-				jsonGenerator.writeStartObject();
-				jsonGenerator.writeStringField(Fieldnames.CYPHER_TYPE, CypherTypenames.Date.getValue());
-				jsonGenerator.writeStringField(Fieldnames.CYPHER_VALUE, DateTimeFormatter.ISO_LOCAL_DATE.format(value.asLocalDate()));
-				jsonGenerator.writeEndObject();
+				json.writeStartObject();
+				json.writeStringField(Fieldnames.CYPHER_TYPE, CypherTypenames.Date.getValue());
+				json.writeStringField(Fieldnames.CYPHER_VALUE, DateTimeFormatter.ISO_LOCAL_DATE.format(value.asLocalDate()));
+				json.writeEndObject();
 			} else if (typeSystem.NODE().isTypeOf(value)) {
 
 				var node = value.asNode();
-				jsonGenerator.writeStartObject();
-
-
 				if (serializerProvider.getActiveView() == Views.Default.class) {
-// here goes the standard "old" format later
+					writeEntityProperties(node, json, serializerProvider);
 				} else {
+					json.writeStartObject();
+					json.writeStringField(Fieldnames.CYPHER_TYPE, CypherTypenames.Node.getValue());
+					json.writeFieldName(Fieldnames.CYPHER_VALUE);
+					json.writeStartObject();
 
-					jsonGenerator.writeStringField(Fieldnames.CYPHER_TYPE, CypherTypenames.Node.getValue());
-					jsonGenerator.writeFieldName(Fieldnames.CYPHER_VALUE);
-					jsonGenerator.writeStartObject();
+					json.writeArrayFieldStart(Fieldnames.LABELS);
+					for (String label : node.labels()) {
+						json.writeString(label);
+					}
+					json.writeEndArray();
 
-					jsonGenerator.writeFieldName(Fieldnames.LABELS);
-					jsonGenerator.writeNull();
+					json.writeFieldName(Fieldnames.PROPERTIES);
+					writeEntityProperties(node, json, serializerProvider);
+					json.writeEndObject();
+					json.writeEndObject();
 				}
-				jsonGenerator.writeFieldName(Fieldnames.PROPERTIES);
-				jsonGenerator.writeStartObject();
-				for (String property : node.keys()) {
-					jsonGenerator.writeFieldName(property);
-					serialize(node.get(property), jsonGenerator, serializerProvider);
+			} else if (value.hasType(typeSystem.LIST())) {
+				json.writeStartArray();
+				for (Value element : value.values()) {
+					serialize(element, json, serializerProvider);
 				}
-				jsonGenerator.writeEndObject();
+				json.writeEndArray();
+			} else if (value.hasType(typeSystem.RELATIONSHIP())) {
 
-
+				var relationship = value.asRelationship();
 				if (serializerProvider.getActiveView() == Views.Default.class) {
-					jsonGenerator.writeEndObject();
+					writeEntityProperties(relationship, json, serializerProvider);
+				} else {
+					// TODO
 				}
-				jsonGenerator.writeEndObject();
 			}
+		}
+
+		private void writeEntityProperties(Entity node, JsonGenerator json, SerializerProvider serializerProvider) throws IOException {
+
+			json.writeStartObject();
+			for (String property : node.keys()) {
+				json.writeFieldName(property);
+				serialize(node.get(property), json, serializerProvider);
+			}
+			json.writeEndObject();
 		}
 
 	}
