@@ -72,3 +72,22 @@ requests must use the appropriate accept type
 ```
  echo "MATCH (n)  RETURN n" | http -a neo4j:secret localhost:8080/b  Accept:'application/x-ndjson' --stream
 ```
+
+=== Supported complex types
+
+Aligning with https://neo4j.com/docs/java-manual/current/cypher-workflow/#java-driver-type-mapping[Neo4j Java Driver types],
+we support types that cannot and should not automatically get derived from a `String` by Jackson.
+To use define those types in a request, the format `{"type": "TypeName", "value":"TypeValue"}` was chosen.
+
+|===
+|Type name | Java type | example value
+| `LocalDate`       | `java.time.LocalDate`     | "2022-10-23"
+| `OffsetTime`      | `java.time.OffsetTime`    | "13:37:11+02:00"
+| `LocalTime`       | `java.time.LocalTime`     | "13:37:11"
+| `ZonedDateTime`   | `java.time.ZonedDateTime` | "2022-10-18T13:37:11+02:00[Europe/Paris]"
+| `LocalDateTime`   | `java.time.LocalDateTime` | "2022-10-18T13:37:11"
+| `Duration`        | `java.time.Duration`      | "PT23H21M"
+| `Period`          | `java.time.Period`        | "P20D"
+| `Point`           | internal implementation of `org.neo4j.driver.types.Point` | "SRID=4979;POINT(12.994823 55.612191 2)"
+| `Byte[]`          | `byte[]`                  | "00 01 02 03 04 05 06 07" (whitespaces are optional)
+|===

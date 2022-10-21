@@ -158,8 +158,9 @@ class CypherRequestParsingTest {
 				Arguments.of("\"LocalDateTime\"", "\"2022-10-18T13:37:11\"", LocalDateTime.of(LocalDate.of(2022, 10, 18), LocalTime.of(13, 37, 11))),
 				Arguments.of("\"Duration\"", "\"PT23H21M\"", Duration.ofHours(23).plusMinutes(21)),
 				Arguments.of("\"Period\"", "\"P20D\"", Period.ofDays(20)),
-				Arguments.of("\"Point\"", "\"SRID=4326;POINT(12.994823 55.612191 2)\"", new PointParameter(4326, 12.994823, 55.612191, 2)),
-				Arguments.of("\"Point\"", "\"SRID=4326;POINT(12.994823 55.612191)\"", new PointParameter(4326, 12.994823, 55.612191, 0))
+				Arguments.of("\"Point\"", "\"SRID=4979;POINT(12.994823 55.612191 2)\"", new PointParameter(4979, 12.994823, 55.612191, 2)),
+				Arguments.of("\"Point\"", "\"SRID=4326;POINT(12.994823 55.612191)\"", new PointParameter(4326, 12.994823, 55.612191, 0)),
+				Arguments.of("\"Byte[]\"", "\"00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10\"", new byte[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16})
 		);
 	}
 
