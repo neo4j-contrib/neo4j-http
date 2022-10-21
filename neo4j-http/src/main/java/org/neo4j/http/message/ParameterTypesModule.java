@@ -15,14 +15,6 @@
  */
 package org.neo4j.http.message;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.ObjectCodec;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.node.JsonNodeType;
-import org.springframework.boot.jackson.JsonObjectDeserializer;
-
 import java.io.IOException;
 import java.io.Serial;
 import java.time.Duration;
@@ -33,12 +25,19 @@ import java.time.OffsetTime;
 import java.time.Period;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Collectors;
+
+import org.springframework.boot.jackson.JsonObjectDeserializer;
+
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.ObjectCodec;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
 
 /**
  * A module that understands the <a href="https://neo4j.com/docs/java-manual/current/cypher-workflow/#java-driver-type-mapping">supported value types</a>
@@ -103,15 +102,15 @@ public class ParameterTypesModule extends SimpleModule {
 
 	private static class ParameterConverter {
 		private static final Map<String, Function<Object, Object>> CONVERTERS = Map.of(
-				"LocalDate", value -> LocalDate.parse((String) value, DateTimeFormatter.ISO_LOCAL_DATE),
-				"OffsetTime", value -> OffsetTime.parse((String) value, DateTimeFormatter.ISO_OFFSET_TIME),
-				"LocalTime", value -> LocalTime.parse((String) value, DateTimeFormatter.ISO_LOCAL_TIME),
-				"ZonedDateTime", value -> ZonedDateTime.parse((String) value, DateTimeFormatter.ISO_ZONED_DATE_TIME),
-				"LocalDateTime", value -> LocalDateTime.parse((String) value, DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-				"Duration", value -> Duration.parse((String) value),
-				"Period", value -> Period.parse((String) value),
-				"Point", value -> PointParameter.of((String) value),
-				"Byte[]", value -> parseByteString((String) value)
+			"LocalDate", value -> LocalDate.parse((String) value, DateTimeFormatter.ISO_LOCAL_DATE),
+			"OffsetTime", value -> OffsetTime.parse((String) value, DateTimeFormatter.ISO_OFFSET_TIME),
+			"LocalTime", value -> LocalTime.parse((String) value, DateTimeFormatter.ISO_LOCAL_TIME),
+			"ZonedDateTime", value -> ZonedDateTime.parse((String) value, DateTimeFormatter.ISO_ZONED_DATE_TIME),
+			"LocalDateTime", value -> LocalDateTime.parse((String) value, DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+			"Duration", value -> Duration.parse((String) value),
+			"Period", value -> Period.parse((String) value),
+			"Point", value -> PointParameter.of((String) value),
+			"Byte[]", value -> parseByteString((String) value)
 		);
 
 
@@ -124,11 +123,11 @@ public class ParameterTypesModule extends SimpleModule {
 		private static byte[] parseByteString(String rawInput) {
 			var input = rawInput.replaceAll("\s*", "");
 			int inputLength = input.length();
-			var result = new byte[inputLength/2];
+			var result = new byte[inputLength / 2];
 
-			for (int i = 0; i < inputLength; i+=2) {
-				result[i/2] = (byte) ((Character.digit(input.charAt(i), 16) << 4) +
-						Character.digit(input.charAt(i+1), 16));
+			for (int i = 0; i < inputLength; i += 2) {
+				result[i / 2] = (byte) ((Character.digit(input.charAt(i), 16) << 4) +
+					Character.digit(input.charAt(i + 1), 16));
 			}
 
 			return result;
