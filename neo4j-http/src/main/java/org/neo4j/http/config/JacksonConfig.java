@@ -39,8 +39,7 @@ public class JacksonConfig {
 	public Jackson2ObjectMapperBuilderCustomizer objectMapperBuilderCustomizer(@Autowired Driver driver) {
 		return builder -> {
 			// Whatever is necessary, added as placeholder
-			builder.modules(new ParameterTypesModule());
-			builder.modules(new DriverTypeSystemModule(driver.defaultTypeSystem()));
+			builder.modules(new ParameterTypesModule(), new DriverTypeSystemModule(driver.defaultTypeSystem()));
 		};
 	}
 }
