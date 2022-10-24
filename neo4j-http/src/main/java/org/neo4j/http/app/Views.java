@@ -28,7 +28,7 @@ public final class Views {
 	/**
 	 * Default view, corresponds with the 4.4 / 5.x state of the HTTP api
 	 */
-	public interface Default {
+	public interface NEO4J_44_DEFAULT {
 
 	}
 

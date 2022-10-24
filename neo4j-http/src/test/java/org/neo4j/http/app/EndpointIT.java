@@ -18,6 +18,7 @@ package org.neo4j.http.app;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -77,6 +78,7 @@ class EndpointIT {
 
 		var headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
+		headers.setAccept(List.of(MediaType.APPLICATION_NDJSON));
 		var requestEntity = new HttpEntity<>("MATCH n RETURN n", headers);
 
 		var exchange = this.restTemplate

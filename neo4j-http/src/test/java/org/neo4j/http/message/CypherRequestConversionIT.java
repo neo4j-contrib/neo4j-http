@@ -15,13 +15,17 @@
  */
 package org.neo4j.http.message;
 
+import static org.mockito.Mockito.when;
+
 import org.junit.jupiter.api.Test;
 import org.neo4j.driver.Driver;
+import org.neo4j.driver.internal.types.InternalTypeSystem;
 import org.neo4j.http.app.Endpoint;
 import org.neo4j.http.config.JacksonConfig;
 import org.neo4j.http.db.Neo4jPrincipal;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -36,6 +40,8 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 
+import javax.annotation.PostConstruct;
+
 /**
  * Test to ensure that the message conversion works with the given Jackson configuration of the application.
  *
@@ -46,8 +52,17 @@ import java.util.List;
 @Import({CypherRequestConversionIT.Config.class, JacksonConfig.class})
 public class CypherRequestConversionIT {
 
-	@MockBean
-	Driver driver;
+	@TestConfiguration
+	static class MockConfiguration {
+
+		@MockBean
+		Driver driver;
+
+		@PostConstruct
+		public void initMock() {
+			when(driver.defaultTypeSystem()).thenReturn(InternalTypeSystem.TYPE_SYSTEM);
+		}
+	}
 
 	@Autowired
 	WebTestClient client;

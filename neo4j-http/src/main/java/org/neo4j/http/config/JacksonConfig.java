@@ -23,6 +23,10 @@ import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilde
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
 /**
  * Configures Jackson.
  *
@@ -38,8 +42,14 @@ public class JacksonConfig {
 	@Bean
 	public Jackson2ObjectMapperBuilderCustomizer objectMapperBuilderCustomizer(@Autowired Driver driver) {
 		return builder -> {
-			// Whatever is necessary, added as placeholder
-			builder.modules(new ParameterTypesModule(), new DriverTypeSystemModule(driver.defaultTypeSystem()));
+			builder.modules(
+				new ParameterTypesModule(),
+				new DriverTypeSystemModule(driver.defaultTypeSystem()),
+				new JavaTimeModule()
+			);
+			builder.featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+			builder.featuresToDisable(SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS);
+			builder.featuresToEnable(MapperFeature.DEFAULT_VIEW_INCLUSION);
 		};
 	}
 }

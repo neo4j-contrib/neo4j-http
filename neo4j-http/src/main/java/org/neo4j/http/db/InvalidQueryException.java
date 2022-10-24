@@ -17,12 +17,15 @@ package org.neo4j.http.db;
 
 import java.io.Serial;
 
+import org.neo4j.driver.exceptions.ClientException;
+import org.neo4j.driver.exceptions.Neo4jException;
+
 /**
  * Thrown by the {@link QueryEvaluator} in case of a syntax error in a Cypher statement.
  *
  * @author Michael J. Simons
  */
-public final class InvalidQueryException extends RuntimeException {
+public final class InvalidQueryException extends Neo4jException {
 
 	@Serial
 	private static final long serialVersionUID = -2496202925680143919L;
@@ -32,8 +35,8 @@ public final class InvalidQueryException extends RuntimeException {
 	 */
 	private final String query;
 
-	InvalidQueryException(String query) {
-		super("Invalid query:" + query);
+	InvalidQueryException(String query, ClientException cause) {
+		super(cause.code(), "Invalid query:" + query, cause);
 		this.query = query;
 	}
 

@@ -15,14 +15,19 @@
  */
 package org.neo4j.http.db;
 
+import java.util.Arrays;
+import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import org.neo4j.driver.AccessMode;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.SessionConfig;
+import org.neo4j.driver.exceptions.Neo4jException;
 import org.neo4j.driver.reactive.RxQueryRunner;
 import org.neo4j.driver.reactive.RxSession;
+import org.neo4j.driver.summary.ResultSummary;
 import org.neo4j.http.config.ApplicationProperties;
 import org.reactivestreams.Publisher;
 import org.springframework.context.annotation.Primary;
@@ -37,7 +42,7 @@ import reactor.util.function.Tuple2;
  */
 @Service
 @Primary
-class DefaultNeo4jAdapter extends AbstractNeo4jAdapter {
+class DefaultNeo4jAdapter implements Neo4jAdapter {
 
 	private final ApplicationProperties applicationProperties;
 
@@ -52,11 +57,10 @@ class DefaultNeo4jAdapter extends AbstractNeo4jAdapter {
 	}
 
 	String normalizeQuery(String query) {
-		return query;
+		return Optional.ofNullable(query).map(String::trim).filter(Predicate.not(String::isBlank)).orElseThrow();
 	}
 
 	@Override
-	// Redundant suppression is a lie… Only IntelliJ thinks so…
 	@SuppressWarnings({"deprecation", "RedundantSuppression"})
 	public Flux<Record> stream(Neo4jPrincipal principal, String query) {
 
@@ -66,8 +70,40 @@ class DefaultNeo4jAdapter extends AbstractNeo4jAdapter {
 			.flatMapMany(env -> this.execute0(env, q -> Flux.from(q.run(query).records())));
 	}
 
+	@Override
+	@SuppressWarnings({"deprecation", "RedundantSuppression"})
+	public Mono<ResultContainer> f(Neo4jPrincipal principal, String query, String... additionalQueries) {
+
+		Flux<String> queries = Flux.just(normalizeQuery(query));
+		if (additionalQueries != null && additionalQueries.length > 0) {
+			queries = queries.concatWith(Flux.fromStream(Arrays.stream(additionalQueries).map(this::normalizeQuery)));
+		}
+
+		record ResultAndSummary(EagerResult result, ResultSummary summary) {
+		}
+
+		return queries.flatMapSequential(theQuery -> Mono.just(principal)
+				.zipWith(queryEvaluator.getExecutionRequirements(principal, theQuery))
+				.flatMap(env -> Mono.fromDirect(this.execute0(env, q -> {
+					var rxResult = q.run(query);
+					return Mono.fromDirect(rxResult.keys())
+						.zipWith(Flux.from(rxResult.records()).collectList())
+						.map(EagerResult::success)
+						.flatMap(result -> Mono.just(result).zipWith(Mono.fromDirect(rxResult.consume()), ResultAndSummary::new));
+				})))
+				.onErrorResume(Neo4jException.class, e -> Mono.just(new ResultAndSummary(EagerResult.error(e), null))))
+			.collect(ResultContainer::new, (container, element) -> {
+				if (element.result().isError()) {
+					container.errors.add(element.result().exception());
+				} else {
+					container.results.add(element.result());
+					container.notifications.addAll(element.summary().notifications());
+				}
+			});
+	}
+
 	@SuppressWarnings("deprecation")
-	<T> Flux<T> execute0(Tuple2<Neo4jPrincipal, QueryEvaluator.ExecutionRequirements> env, Function<RxQueryRunner, Publisher<T>> f) {
+	<T> Publisher<T> execute0(Tuple2<Neo4jPrincipal, QueryEvaluator.ExecutionRequirements> env, Function<RxQueryRunner, Publisher<T>> f) {
 
 		var requirements = env.getT2();
 		var sessionSupplier = queryEvaluator.isEnterpriseEdition().

@@ -18,6 +18,7 @@ package org.neo4j.http.db;
 import org.neo4j.driver.Record;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 /**
  * Access to Neo4j via an adapter. In most Spring applications I'm a fan of _not_ using service interfaces but for this
@@ -27,7 +28,7 @@ import reactor.core.publisher.Flux;
  *
  * @author Michael J. Simons
  */
-public sealed interface Neo4jAdapter permits AbstractNeo4jAdapter {
+public interface Neo4jAdapter {
 
 	/**
 	 * Streams the records of the given query
@@ -36,4 +37,13 @@ public sealed interface Neo4jAdapter permits AbstractNeo4jAdapter {
 	 * @return A stream of records
 	 */
 	Flux<Record> stream(Neo4jPrincipal principal, String query);
+
+	/**
+	 * Executes one or more queries and eagerly collects toe results into a {@link ResultContainer}.
+	 * @param principal The authenticated principal
+	 * @param query The query to execute
+	 * @param additionalQueries Additional queries to execute
+	 * @return An eagerly populated result container
+	 */
+	Mono<ResultContainer> f(Neo4jPrincipal principal, String query, String... additionalQueries);
 }

@@ -18,11 +18,9 @@ package org.neo4j.http.db;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 import org.neo4j.cypher.internal.ast.factory.ASTExceptionFactory;
@@ -88,9 +86,7 @@ class DefaultQueryEvaluator implements QueryEvaluator {
 	@Override
 	public Mono<ExecutionRequirements> getExecutionRequirements(Neo4jPrincipal principal, String query) {
 
-		var theQuery = requireNonNullNonBlank(query);
-		return getQueryTarget(principal, theQuery).zipWith(getTransactionMode(theQuery), ExecutionRequirements::new)
-			.cache();
+		return getQueryTarget(principal, query).zipWith(getTransactionMode(query), ExecutionRequirements::new).cache();
 	}
 
 	/**
@@ -120,7 +116,7 @@ class DefaultQueryEvaluator implements QueryEvaluator {
 		// In a compressed JSON format either, so we just remove all that stuff with the onErrorMap as last operator
 		return Mono.usingWhen(sessionSupplier, session -> Mono.fromDirect(session.run("EXPLAIN " + query).consume()), RxSession::close)
 			.map(summary -> getOperators(summary).stream().anyMatch(CypherOperator::isUpdating) ? Target.WRITERS : Target.READERS)
-			.onErrorMap(DefaultQueryEvaluator::isSyntaxError, e -> new InvalidQueryException(query));
+			.onErrorMap(DefaultQueryEvaluator::isSyntaxError, e -> new InvalidQueryException(query, (ClientException) e));
 	}
 
 	private static boolean isSyntaxError(Throwable e) {
@@ -196,11 +192,6 @@ class DefaultQueryEvaluator implements QueryEvaluator {
 		} catch (Exception e) {
 			return new QueryCharacteristics(false, false);
 		}
-	}
-
-	private String requireNonNullNonBlank(String query) {
-
-		return Optional.ofNullable(query).map(String::trim).filter(Predicate.not(String::isBlank)).orElseThrow();
 	}
 
 	private enum ASTExceptionFactoryImpl implements ASTExceptionFactory {
