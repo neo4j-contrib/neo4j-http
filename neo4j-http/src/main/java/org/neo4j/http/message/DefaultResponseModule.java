@@ -222,8 +222,18 @@ final class DefaultResponseModule extends SimpleModule {
 
 		private final TemporalAmountAdapter temporalAmountAdapter = new TemporalAmountAdapter();
 
+		private final Map<Type, CypherTypes> typeToNames;
+
 		ValueSerializer() {
 			super(Value.class);
+			this.typeToNames = Map.of(
+				typeSystem.BYTES(), CypherTypes.ByteArray,
+				typeSystem.DATE(), CypherTypes.Date,
+				typeSystem.TIME(), CypherTypes.Time,
+				typeSystem.LOCAL_TIME(), CypherTypes.LocalTime,
+				typeSystem.DATE_TIME(), CypherTypes.DateTime,
+				typeSystem.LOCAL_DATE_TIME(), CypherTypes.LocalDateTime
+			);
 		}
 
 		@Override
@@ -279,17 +289,18 @@ final class DefaultResponseModule extends SimpleModule {
 
 		private void renderNewFormat(Value value, JsonGenerator json, SerializerProvider serializers) throws IOException {
 
-			if (value.hasType(typeSystem.DATE())) {
+			if (typeToNames.containsKey(value.type())) {
+				var cypherType = typeToNames.get(value.type());
 				json.writeStartObject();
-				json.writeStringField(Fieldnames.CYPHER_TYPE, CypherTypenames.Date.getValue());
-				json.writeStringField(Fieldnames.CYPHER_VALUE, DateTimeFormatter.ISO_LOCAL_DATE.format(value.asLocalDate()));
+				json.writeStringField(Fieldnames.CYPHER_TYPE, cypherType.getValue());
+				json.writeStringField(Fieldnames.CYPHER_VALUE, cypherType.getWriter().apply(value));
 				json.writeEndObject();
 			} else if (value.hasType(typeSystem.POINT())) {
 				renderPoint(value, json, true);
 			} else if (value.hasType(typeSystem.NODE())) {
 				var node = value.asNode();
 				json.writeStartObject();
-				json.writeStringField(Fieldnames.CYPHER_TYPE, CypherTypenames.Node.getValue());
+				json.writeStringField(Fieldnames.CYPHER_TYPE, CypherTypes.Node.getValue());
 				json.writeFieldName(Fieldnames.CYPHER_VALUE);
 				json.writeStartObject();
 

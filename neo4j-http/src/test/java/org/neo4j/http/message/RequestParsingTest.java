@@ -168,22 +168,22 @@ class RequestParsingTest {
 
 	private static Stream<Arguments> complexTypesParams() {
 		return Stream.of(
-				Arguments.of(CypherTypenames.Date, "2022-10-18", LocalDate.of(2022, 10, 18)),
-				Arguments.of(CypherTypenames.Time, "13:37:11+02:00", OffsetTime.of(LocalTime.of(13, 37, 11), ZoneOffset.ofHours(2))),
-				Arguments.of(CypherTypenames.LocalTime, "13:37:11", LocalTime.of(13, 37, 11)),
-				Arguments.of(CypherTypenames.DateTime, "2022-10-18T13:37:11+02:00[Europe/Paris]", ZonedDateTime.of(LocalDate.of(2022, 10, 18), LocalTime.of(13, 37, 11), ZoneId.of("Europe/Paris"))),
-				Arguments.of(CypherTypenames.LocalDateTime, "2022-10-18T13:37:11", LocalDateTime.of(LocalDate.of(2022, 10, 18), LocalTime.of(13, 37, 11))),
-				Arguments.of(CypherTypenames.Duration, "PT23H21M", Duration.ofHours(23).plusMinutes(21)),
-				Arguments.of(CypherTypenames.Period, "P20D", Period.ofDays(20)),
-				Arguments.of(CypherTypenames.Point, "SRID=4979;POINT(12.994823 55.612191 2)", Values.point(4979, 12.994823, 55.612191, 2)),
-				Arguments.of(CypherTypenames.Point, "SRID=4326;POINT(12.994823 55.612191)", Values.point(4326, 12.994823, 55.612191)),
-				Arguments.of(CypherTypenames.ByteArray, "00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10", new byte[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16})
+				Arguments.of(CypherTypes.Date, "2022-10-18", LocalDate.of(2022, 10, 18)),
+				Arguments.of(CypherTypes.Time, "13:37:11+02:00", OffsetTime.of(LocalTime.of(13, 37, 11), ZoneOffset.ofHours(2))),
+				Arguments.of(CypherTypes.LocalTime, "13:37:11", LocalTime.of(13, 37, 11)),
+				Arguments.of(CypherTypes.DateTime, "2022-10-18T13:37:11+02:00[Europe/Paris]", ZonedDateTime.of(LocalDate.of(2022, 10, 18), LocalTime.of(13, 37, 11), ZoneId.of("Europe/Paris"))),
+				Arguments.of(CypherTypes.LocalDateTime, "2022-10-18T13:37:11", LocalDateTime.of(LocalDate.of(2022, 10, 18), LocalTime.of(13, 37, 11))),
+				Arguments.of(CypherTypes.Duration, "PT23H21M", Duration.ofHours(23).plusMinutes(21)),
+				Arguments.of(CypherTypes.Period, "P20D", Period.ofDays(20)),
+				Arguments.of(CypherTypes.Point, "SRID=4979;POINT(12.994823 55.612191 2)", Values.point(4979, 12.994823, 55.612191, 2)),
+				Arguments.of(CypherTypes.Point, "SRID=4326;POINT(12.994823 55.612191)", Values.point(4326, 12.994823, 55.612191)),
+				Arguments.of(CypherTypes.ByteArray, "00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10", new byte[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16})
 		);
 	}
 
 	@ParameterizedTest
 	@MethodSource("complexTypesParams")
-	void marshalComplexTypes(CypherTypenames typeName, Object value, Object expected) throws JsonProcessingException {
+	void marshalComplexTypes(CypherTypes typeName, Object value, Object expected) throws JsonProcessingException {
 		var payload = """
 				{
 					"statements": [
@@ -200,7 +200,7 @@ class RequestParsingTest {
 
 	@ParameterizedTest
 	@MethodSource("complexTypesParams")
-	void marshalComplexTypesInList(CypherTypenames typeName, Object value, Object expected) throws JsonProcessingException {
+	void marshalComplexTypesInList(CypherTypes typeName, Object value, Object expected) throws JsonProcessingException {
 		var payload = """
 				{
 					"statements": [
@@ -217,7 +217,7 @@ class RequestParsingTest {
 
 	@ParameterizedTest
 	@MethodSource("complexTypesParams")
-	void marshalComplexTypesInMap(CypherTypenames typeName, Object value, Object expected) throws JsonProcessingException {
+	void marshalComplexTypesInMap(CypherTypes typeName, Object value, Object expected) throws JsonProcessingException {
 		var payload = """
 				{
 					"statements": [
@@ -234,7 +234,7 @@ class RequestParsingTest {
 
 	@ParameterizedTest
 	@MethodSource("complexTypesParams")
-	void marshalComplexTypesInListOfMap(CypherTypenames typeName, Object value, Object expected) throws JsonProcessingException {
+	void marshalComplexTypesInListOfMap(CypherTypes typeName, Object value, Object expected) throws JsonProcessingException {
 		var payload = """
 				{
 					"statements": [

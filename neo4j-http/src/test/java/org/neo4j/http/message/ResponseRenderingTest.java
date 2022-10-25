@@ -91,7 +91,9 @@ class ResponseRenderingTest {
 			Arguments.of(Values.value((float) 42.23), "42.23"),
 			Arguments.of(Values.value(false), "false"),
 			Arguments.of(Values.value(LocalDate.of(2022, 10, 21)), "{\"$type\":\"Date\",\"_value\":\"2022-10-21\"}"),
-			Arguments.of(mockNode(), "{\"$type\":\"Node\",\"_value\":{\"_labels\":[\"L1\",\"L2\",\"$L3\"],\"_props\":{\"s\":\"foo\",\"n\":4711}}}")
+			Arguments.of(mockNode(), "{\"$type\":\"Node\",\"_value\":{\"_labels\":[\"L1\",\"L2\",\"$L3\"],\"_props\":{\"s\":\"foo\",\"n\":4711}}}"),
+			Arguments.of(Values.value(LocalDateTime.of(2022, 10, 24, 10, 45, 39, 507000000)), "{\"$type\":\"LocalDateTime\",\"_value\":\"2022-10-24T10:45:39.507\"}"),
+			Arguments.of(Values.value(new byte[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}), "{\"$type\":\"Byte[]\",\"_value\":\"000102030405060708090a0b0c0d0e0f10\"}")
 		);
 	}
 

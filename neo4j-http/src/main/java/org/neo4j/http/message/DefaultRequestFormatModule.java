@@ -30,27 +30,18 @@ import com.fasterxml.jackson.databind.node.ValueNode;
 import org.neo4j.driver.Query;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.Values;
-import org.neo4j.driver.types.Point;
 import org.neo4j.http.db.AnnotatedQuery;
 import org.springframework.boot.jackson.JsonObjectDeserializer;
 
 import java.io.IOException;
 import java.io.Serial;
-import java.time.Duration;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.OffsetTime;
-import java.time.Period;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * A module that understands both <a href="https://neo4j.com/docs/http-api/current/actions/query-format/">HTTP Query format</a> and
@@ -151,11 +142,11 @@ final class DefaultRequestFormatModule extends SimpleModule {
 					if (customType != null) {
 						String customTypeName = customType.asText();
 						if (!canConvert(customTypeName)) {
-							throw new IllegalArgumentException("Cannot convert %s into a known type. Convertible types are %s".formatted(customTypeName, CONVERTERS.keySet()));
+							var convertibleTypes = Arrays.stream(CypherTypes.values()).filter(ct -> ct.getReader() != null).collect(Collectors.toSet());
+							throw new IllegalArgumentException("Cannot convert %s into a known type. Convertible types are %s".formatted(customTypeName, convertibleTypes));
 						}
 						ValueNode typeValue = tree.get(Fieldnames.CYPHER_VALUE).require();
-						var apply = CONVERTER.apply(customTypeName, typeValue);
-						return Values.value(apply);
+						return CONVERTER.apply(customTypeName, typeValue);
 					}
 					return Values.value(codec.readValue(codec.treeAsTokens(tree), new TypeReference<Map<String, Value>>() {
 					}));
@@ -165,65 +156,19 @@ final class DefaultRequestFormatModule extends SimpleModule {
 		}
 	}
 
-	private final static Pattern WKT_PATTERN = Pattern.compile("SRID=(\\d+);\\s*POINT\\(\\s*(\\S+)\\s+(\\S+)\\s*(\\S?)\\)");
-
-	/**
-	 * Pragmatic parsing of the Neo4j Java Driver's {@link Point} class
-	 * This method does not check if the parameters align with the given coordinate system or if the coordinate system code is valid.
-	 *
-	 * @param input WKT representation of a point
-	 */
-	private static Point parsePoint(String input) {
-		var matcher = WKT_PATTERN.matcher(input);
-
-		if (!matcher.matches()) {
-			throw new IllegalArgumentException("Illegal pattern"); //todo add right pattern syntax in exception message
-		}
-
-		var srid = Integer.parseInt(matcher.group(1));
-		var x = Double.parseDouble(matcher.group(2));
-		var y = Double.parseDouble(matcher.group(3));
-		var z = matcher.group(4);
-		if (z != null && !z.isBlank()) {
-			return Values.point(srid, x, y, Double.parseDouble(z)).asPoint();
-		} else {
-			return Values.point(srid, x, y).asPoint();
-		}
-	}
-
-	private static final Map<String, Function<String, Object>> CONVERTERS = Map.of(
-		CypherTypenames.Date.getValue(), value -> LocalDate.parse(value, DateTimeFormatter.ISO_LOCAL_DATE),
-		CypherTypenames.Time.getValue(), value -> OffsetTime.parse(value, DateTimeFormatter.ISO_OFFSET_TIME),
-		CypherTypenames.LocalTime.getValue(), value -> LocalTime.parse(value, DateTimeFormatter.ISO_LOCAL_TIME),
-		CypherTypenames.DateTime.getValue(), value -> ZonedDateTime.parse(value, DateTimeFormatter.ISO_ZONED_DATE_TIME),
-		CypherTypenames.LocalDateTime.getValue(), value -> LocalDateTime.parse(value, DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-		CypherTypenames.Duration.getValue(), Duration::parse,
-		CypherTypenames.Period.getValue(), Period::parse,
-		CypherTypenames.Point.getValue(), DefaultRequestFormatModule::parsePoint,
-		CypherTypenames.ByteArray.getValue(), DefaultRequestFormatModule::parseByteString
-	);
-
-	private final static BiFunction<String, ValueNode, Object> CONVERTER = (typeName, value) -> {
+	private final static BiFunction<String, ValueNode, Value> CONVERTER = (typeName, value) -> {
 		if (value instanceof TextNode textNode) {
-			return CONVERTERS.get(typeName).apply(textNode.asText());
+			return CypherTypes.byNameOrValue(typeName).getReader().apply(textNode.asText());
 		}
 		throw new IllegalArgumentException("Value %s (type %s) for type %s has to be String-based.".formatted(value, value.getNodeType(), typeName));
 	};
 
 	private static boolean canConvert(String type) {
-		return CONVERTERS.containsKey(type);
-	}
-
-	private static byte[] parseByteString(String rawInput) {
-		var input = rawInput.replaceAll("\s*", "");
-		int inputLength = input.length();
-		var result = new byte[inputLength / 2];
-
-		for (int i = 0; i < inputLength; i += 2) {
-			result[i / 2] = (byte) ((Character.digit(input.charAt(i), 16) << 4)
-				+ Character.digit(input.charAt(i + 1), 16));
+		try {
+			var cypherType = CypherTypes.byNameOrValue(type);
+			return cypherType.getReader() != null;
+		} catch (IllegalArgumentException e) {
+			return false;
 		}
-
-		return result;
 	}
 }
