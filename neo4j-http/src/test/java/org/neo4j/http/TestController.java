@@ -15,7 +15,7 @@
  */
 package org.neo4j.http;
 
-import org.neo4j.http.app.AnnotatedQuery;
+import org.neo4j.http.db.AnnotatedQuery;
 import org.neo4j.http.db.Neo4jPrincipal;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;

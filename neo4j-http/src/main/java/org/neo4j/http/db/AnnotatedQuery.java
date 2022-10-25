@@ -1,4 +1,19 @@
-package org.neo4j.http.app;
+/*
+ * Copyright 2022 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.neo4j.http.db;
 
 import java.util.List;
 
@@ -43,24 +58,38 @@ public record AnnotatedQuery(Query value, boolean includeStats, ResultFormat... 
 	 * Possible result formats
 	 */
 	public enum ResultFormat {
-		/** Standard since Neo4j 3.5, will always be included. */
+		/**
+		 * Standard since Neo4j 3.5, will always be included.
+		 */
 		ROW,
-		/** A somewhat graph-like format, needs to be explicitly requested. */
-		GRAPH
+		/**
+		 * A somewhat graph-like format, needs to be explicitly requested.
+		 */
+		GRAPH;
 	}
 
+	/**
+	 * This is a container for {@link AnnotatedQuery annotated queries}
+	 *
+	 * @param value the content of this container
+	 */
+	public record Container(List<AnnotatedQuery> value) {
+	}
+
+	/**
+	 * Makes sure the {@link #resultDataContents} are never empty
+	 * @param value              The actual query
+	 * @param includeStats       flag to include stats or not
+	 * @param resultDataContents One or more formats, not applicable to the streaming API
+	 */
 	public AnnotatedQuery {
 		resultDataContents = resultDataContents == null || resultDataContents.length == 0 ? new ResultFormat[] {ResultFormat.ROW} : resultDataContents;
 	}
 
 	/**
-	 * This is a container for {@link AnnotatedQuery annotated queries}
-	 * @param value
+	 * {@return the text of the annotated query}
 	 */
-	public record Container(List<AnnotatedQuery> value) {
-
-		public Container {
-			value = List.copyOf(value);
-		}
+	public String text() {
+		return value.text();
 	}
 }

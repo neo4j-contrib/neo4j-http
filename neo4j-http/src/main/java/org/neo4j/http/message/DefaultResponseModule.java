@@ -17,13 +17,18 @@ package org.neo4j.http.message;
 
 import java.io.IOException;
 import java.io.Serial;
+import java.time.Duration;
+import java.time.Period;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
+import java.time.temporal.TemporalUnit;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
-import org.neo4j.driver.Query;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.exceptions.Neo4jException;
@@ -37,10 +42,8 @@ import org.neo4j.driver.types.Relationship;
 import org.neo4j.driver.types.Type;
 import org.neo4j.driver.types.TypeSystem;
 import org.neo4j.driver.util.Pair;
-import org.neo4j.http.app.AnnotatedQuery;
 import org.neo4j.http.app.Views;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIncludeProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -49,11 +52,12 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 /**
- * Jackson module to deal with Java driver types.
+ * A module that understands both <a href="https://neo4j.com/docs/http-api/current/actions/query-format/">HTTP Query format</a> and
+ * <a href="https://neo4j.com/docs/java-manual/current/cypher-workflow/#java-driver-type-mapping">supported value types</a>.
  *
  * @author Michael J. Simons
  */
-public final class DriverTypeSystemModule extends SimpleModule {
+final class DefaultResponseModule extends SimpleModule {
 
 	@Serial
 	private static final long serialVersionUID = -6600328341718439212L;
@@ -73,24 +77,24 @@ public final class DriverTypeSystemModule extends SimpleModule {
 	 *
 	 * @param typeSystem Retrieved from the driver
 	 */
-	public DriverTypeSystemModule(TypeSystem typeSystem) {
+	DefaultResponseModule(TypeSystem typeSystem) {
 
 		this.typeSystem = typeSystem;
 		this.simpleTypes = Set.of(typeSystem.NULL(), typeSystem.BOOLEAN(), typeSystem.STRING(), typeSystem.INTEGER(), typeSystem.FLOAT());
+
 		this.addSerializer(Record.class, new RecordSerializer());
 		this.addSerializer(Value.class, new ValueSerializer());
-		this.setMixInAnnotation(Notification.class, NotificationMixin.class);
+
+		this.setMixInAnnotation(Notification.class, NotificationMixIn.class);
 		this.setMixInAnnotation(InputPosition.class, InputPositionMixIn.class);
 		this.setMixInAnnotation(Neo4jException.class, Neo4jExceptionMixIn.class);
-		this.setMixInAnnotation(AnnotatedQuery.Container.class, AnnotatedQueryContainerMixIn.class);
-		this.setMixInAnnotation(Query.class, QueryMixIn.class);
 	}
 
 	private boolean hasSimpleType(Value value) {
 		return value == null || simpleTypes.stream().anyMatch(value::hasType);
 	}
 
-	interface NotificationMixin {
+	private interface NotificationMixIn {
 
 		@JsonProperty
 		String code();
@@ -105,10 +109,10 @@ public final class DriverTypeSystemModule extends SimpleModule {
 		String description();
 
 		@JsonProperty
-		InputPosition position();
+		org.neo4j.driver.summary.InputPosition position();
 	}
 
-	interface InputPositionMixIn {
+	private interface InputPositionMixIn {
 
 		@JsonProperty
 		int column();
@@ -120,29 +124,14 @@ public final class DriverTypeSystemModule extends SimpleModule {
 		int offset();
 	}
 
-	static abstract class AnnotatedQueryContainerMixIn {
-
-		@JsonCreator
-		public AnnotatedQueryContainerMixIn(@JsonProperty("statements") List<AnnotatedQuery> value) {
-		}
-	}
-
-	public static abstract class QueryMixIn {
-
-		@JsonCreator
-		public QueryMixIn(@JsonProperty("statement") String statement, @JsonProperty("parameters") Map<String, Object> parameters) {
-		}
-
-	}
-
 	@JsonIncludeProperties({"code", "message"})
-	interface Neo4jExceptionMixIn {
+	private interface Neo4jExceptionMixIn {
 
 		@JsonProperty
 		String code();
 	}
 
-	final class RecordSerializer extends StdSerializer<Record> {
+	private final class RecordSerializer extends StdSerializer<Record> {
 
 		@Serial
 		private static final long serialVersionUID = 8594507829627684699L;
@@ -382,6 +371,73 @@ public final class DriverTypeSystemModule extends SimpleModule {
 			}
 			json.writeEndObject();
 		}
+	}
 
+	/**
+	 * This adapter maps a Driver or embedded based {@link TemporalAmount} to a valid Java temporal amount. It tries to be
+	 * as specific as possible: If the amount can be reliable mapped to a {@link Period}, it returns a period. If only
+	 * fields are present that are no estimated time unites, then it returns a {@link Duration}. <br>
+	 * <br>
+	 * In cases a user has used Cypher and its <code>duration()</code> function, i.e. like so
+	 * <code>CREATE (s:SomeTime {isoPeriod: duration('P13Y370M45DT25H120M')}) RETURN s</code> a duration object has been
+	 * created that cannot be represented by either a {@link Period} or {@link Duration}. The user has to map it to a plain
+	 * {@link TemporalAmount} in these cases. <br>
+	 * The Java Driver uses a <code>org.neo4j.driver.v1.types.IsoDuration</code>, embedded uses
+	 * <code>org.neo4j.values.storable.DurationValue</code> for representing a temporal amount, but in the end, they can be
+	 * treated the same. However, be aware that the temporal amount returned in that case may not be equal to the other one,
+	 * only represents the same amount after normalization.
+	 *
+	 * @author Michael J. Simons
+	 */
+	// Welcome to its 3rd installment, after the first appearance in Neo4j-OGM, than Spring Data Neo4j 6 now the HTTP PoC
+	static final class TemporalAmountAdapter implements Function<TemporalAmount, TemporalAmount> {
+
+		private static final int PERIOD_MASK = 0b11100;
+		private static final int DURATION_MASK = 0b00011;
+		private static final TemporalUnit[] SUPPORTED_UNITS = {ChronoUnit.YEARS, ChronoUnit.MONTHS, ChronoUnit.DAYS,
+			ChronoUnit.SECONDS, ChronoUnit.NANOS};
+
+		private static final short FIELD_YEAR = 0;
+		private static final short FIELD_MONTH = 1;
+		private static final short FIELD_DAY = 2;
+		private static final short FIELD_SECONDS = 3;
+		private static final short FIELD_NANOS = 4;
+
+		private static final BiFunction<TemporalAmount, TemporalUnit, Integer> TEMPORAL_UNIT_EXTRACTOR = (d, u) -> {
+			if (!d.getUnits().contains(u)) {
+				return 0;
+			}
+			return Math.toIntExact(d.get(u));
+		};
+
+		@Override
+		public TemporalAmount apply(TemporalAmount internalTemporalAmountRepresentation) {
+
+			int[] values = new int[SUPPORTED_UNITS.length];
+			int type = 0;
+			for (int i = 0; i < SUPPORTED_UNITS.length; ++i) {
+				values[i] = TEMPORAL_UNIT_EXTRACTOR.apply(internalTemporalAmountRepresentation, SUPPORTED_UNITS[i]);
+				type |= (values[i] == 0) ? 0 : (0b10000 >> i);
+			}
+
+			boolean couldBePeriod = couldBePeriod(type);
+			boolean couldBeDuration = couldBeDuration(type);
+
+			if (couldBePeriod && !couldBeDuration) {
+				return Period.of(values[FIELD_YEAR], values[FIELD_MONTH], values[FIELD_DAY]).normalized();
+			} else if (couldBeDuration && !couldBePeriod) {
+				return Duration.ofSeconds(values[FIELD_SECONDS]).plusNanos(values[FIELD_NANOS]);
+			} else {
+				return internalTemporalAmountRepresentation;
+			}
+		}
+
+		private static boolean couldBePeriod(int type) {
+			return (PERIOD_MASK & type) > 0;
+		}
+
+		private static boolean couldBeDuration(int type) {
+			return (DURATION_MASK & type) > 0;
+		}
 	}
 }

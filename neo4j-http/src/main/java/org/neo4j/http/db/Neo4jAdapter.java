@@ -45,5 +45,5 @@ public interface Neo4jAdapter {
 	 * @param additionalQueries Additional queries to execute
 	 * @return An eagerly populated result container
 	 */
-	Mono<ResultContainer> f(Neo4jPrincipal principal, String query, String... additionalQueries);
+	Mono<ResultContainer> run(Neo4jPrincipal principal, AnnotatedQuery query, AnnotatedQuery... additionalQueries);
 }

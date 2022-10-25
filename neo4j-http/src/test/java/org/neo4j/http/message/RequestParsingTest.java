@@ -20,13 +20,18 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.neo4j.driver.Driver;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.Values;
+import org.neo4j.driver.internal.types.InternalTypeSystem;
+import org.neo4j.http.db.AnnotatedQuery;
+import org.neo4j.http.config.JacksonConfig;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -43,19 +48,28 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Test to ensure message parsing works correct.
  */
-class CypherRequestParsingTest {
-/*
-	private static final ObjectMapper objectMapper = new ObjectMapper();
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+class RequestParsingTest {
 
+	private final ObjectMapper objectMapper;
 
-	@BeforeAll
-	static void setupMapper() {
-		objectMapper.registerModule(new ParameterTypesModule());
+	private final Driver driver;
 
+	RequestParsingTest() {
+
+		driver = mock(Driver.class);
+		when(driver.defaultTypeSystem()).thenReturn(InternalTypeSystem.TYPE_SYSTEM);
+
+		var jacksonObjectMapperBuilder = new Jackson2ObjectMapperBuilder();
+		new JacksonConfig().objectMapperBuilderCustomizer(driver).customize(jacksonObjectMapperBuilder);
+
+		this.objectMapper = jacksonObjectMapperBuilder.build();
 	}
 
 	@Test
@@ -70,11 +84,12 @@ class CypherRequestParsingTest {
 						]
 				}""";
 
-		var cypherRequest = objectMapper.readValue(payload, Queries.class);
+		var cypherRequest = objectMapper.readValue(payload, AnnotatedQuery.Container.class);
 
-		assertThat(cypherRequest.statements()).hasSize(1);
-		assertThat(cypherRequest.statements().get(0).statement()).isEqualTo("MATCH (n) RETURN n");
-		assertThat(cypherRequest.statements().get(0).parameters()).containsEntry("name", Values.value("Neo4j-HTTP-Proxy"));
+		assertThat(cypherRequest.value()).hasSize(1);
+		assertThat(cypherRequest.value().get(0).value().text()).isEqualTo("MATCH (n) RETURN n");
+		assertThat(cypherRequest.value().get(0).value().parameters().asMap(Function.identity()))
+			.containsEntry("name", Values.value("Neo4j-HTTP-Proxy"));
 	}
 
 	@Test
@@ -92,13 +107,17 @@ class CypherRequestParsingTest {
 							}
 						]
 				}""";
-		var cypherRequest = objectMapper.readValue(payload, Queries.class);
+		var cypherRequest = objectMapper.readValue(payload, AnnotatedQuery.Container.class);
 
-		assertThat(cypherRequest.statements()).hasSize(2);
-		assertThat(cypherRequest.statements().get(0).statement()).isEqualTo("MATCH (n) RETURN n");
-		assertThat(cypherRequest.statements().get(0).parameters()).containsEntry("name", Values.value("Neo4j-HTTP-Proxy"));
-		assertThat(cypherRequest.statements().get(1).statement()).isEqualTo("CREATE (n:Node{name:$name})");
-		assertThat(cypherRequest.statements().get(1).parameters()).containsEntry("name", Values.value("Test"));
+		assertThat(cypherRequest.value()).hasSize(2);
+		assertThat(cypherRequest.value()).element(0).extracting(AnnotatedQuery::value).satisfies(query -> {
+			assertThat(query.text()).isEqualTo("MATCH (n) RETURN n");
+			assertThat(query.parameters().asMap(Function.identity())).containsEntry("name", Values.value("Neo4j-HTTP-Proxy"));
+		});
+		assertThat(cypherRequest.value()).element(1).extracting(AnnotatedQuery::value).satisfies(query -> {
+			assertThat(query.text()).isEqualTo("CREATE (n:Node{name:$name})");
+			assertThat(query.parameters().asMap(Function.identity())).containsEntry("name", Values.value("Test"));
+		});
 	}
 
 	private static Stream<Arguments> simpleTypesParams() {
@@ -126,11 +145,8 @@ class CypherRequestParsingTest {
 					]
 				}""".formatted(typeName, value);
 
-		var cypherRequest = objectMapper.readValue(payload, Queries.class);
-
-		assertThat(cypherRequest.statements().get(0).parameters().get("value")).isEqualTo(Values.value(expected));
-
-
+		var cypherRequest = objectMapper.readValue(payload, AnnotatedQuery.Container.class);
+		assertThat(cypherRequest.value().get(0).value().parameters().get("value")).isEqualTo(Values.value(expected));
 	}
 
 	@ParameterizedTest
@@ -146,11 +162,8 @@ class CypherRequestParsingTest {
 					]
 				}""".formatted(typeName, value);
 
-		var cypherRequest = objectMapper.readValue(payload, Queries.class);
-
-		assertThat(cypherRequest.statements().get(0).parameters().get("value")).isEqualTo(Values.value(List.of(expected)));
-
-
+		var cypherRequest = objectMapper.readValue(payload, AnnotatedQuery.Container.class);
+		assertThat(cypherRequest.value().get(0).value().parameters().get("value")).isEqualTo(Values.value(List.of(expected)));
 	}
 
 	private static Stream<Arguments> complexTypesParams() {
@@ -162,8 +175,8 @@ class CypherRequestParsingTest {
 				Arguments.of(CypherTypenames.LocalDateTime, "2022-10-18T13:37:11", LocalDateTime.of(LocalDate.of(2022, 10, 18), LocalTime.of(13, 37, 11))),
 				Arguments.of(CypherTypenames.Duration, "PT23H21M", Duration.ofHours(23).plusMinutes(21)),
 				Arguments.of(CypherTypenames.Period, "P20D", Period.ofDays(20)),
-				Arguments.of(CypherTypenames.Point, "SRID=4979;POINT(12.994823 55.612191 2)", new PointParameter(4979, 12.994823, 55.612191, 2)),
-				Arguments.of(CypherTypenames.Point, "SRID=4326;POINT(12.994823 55.612191)", new PointParameter(4326, 12.994823, 55.612191, 0)),
+				Arguments.of(CypherTypenames.Point, "SRID=4979;POINT(12.994823 55.612191 2)", Values.point(4979, 12.994823, 55.612191, 2)),
+				Arguments.of(CypherTypenames.Point, "SRID=4326;POINT(12.994823 55.612191)", Values.point(4326, 12.994823, 55.612191)),
 				Arguments.of(CypherTypenames.ByteArray, "00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 10", new byte[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16})
 		);
 	}
@@ -181,10 +194,8 @@ class CypherRequestParsingTest {
 					]
 				}""".formatted(typeName.getValue(), value);
 
-		var cypherRequest = objectMapper.readValue(payload, Queries.class);
-
-		assertThat(cypherRequest.statements().get(0).parameters().get("value")).isEqualTo(Values.value(expected));
-
+		var cypherRequest = objectMapper.readValue(payload, AnnotatedQuery.Container.class);
+		assertThat(cypherRequest.value().get(0).value().parameters().get("value")).isEqualTo(Values.value(expected));
 	}
 
 	@ParameterizedTest
@@ -200,10 +211,8 @@ class CypherRequestParsingTest {
 					]
 				}""".formatted(typeName.getValue(), value);
 
-		var cypherRequest = objectMapper.readValue(payload, Queries.class);
-
-		assertThat(((Value) cypherRequest.statements().get(0).parameters().get("value")).get(0)).isEqualTo(Values.value(expected));
-
+		var cypherRequest = objectMapper.readValue(payload, AnnotatedQuery.Container.class);
+		assertThat(cypherRequest.value().get(0).value().parameters().get("value")).isEqualTo(Values.value(List.of(expected)));
 	}
 
 	@ParameterizedTest
@@ -219,10 +228,8 @@ class CypherRequestParsingTest {
 					]
 				}""".formatted(typeName.getValue(), value);
 
-		var cypherRequest = objectMapper.readValue(payload, Queries.class);
-
-		assertThat(((Value) cypherRequest.statements().get(0).parameters().get("value")).get("nestedObject")).isEqualTo(Values.value(expected));
-
+		var cypherRequest = objectMapper.readValue(payload, AnnotatedQuery.Container.class);
+		assertThat(cypherRequest.value().get(0).value().parameters().get("value").get("nestedObject")).isEqualTo(Values.value(expected));
 	}
 
 	@ParameterizedTest
@@ -238,9 +245,8 @@ class CypherRequestParsingTest {
 					]
 				}""".formatted(typeName.getValue(), value);
 
-		var cypherRequest = objectMapper.readValue(payload, Queries.class);
-
-		assertThat((Value) cypherRequest.statements().get(0).parameters().get("value"))
+		var cypherRequest = objectMapper.readValue(payload, AnnotatedQuery.Container.class);
+		assertThat(cypherRequest.value().get(0).value().parameters().get("value"))
 			.extracting(v -> v.asList(Function.identity()))
 			.asInstanceOf(InstanceOfAssertFactories.list(Value.class))
 			.element(0)
@@ -260,7 +266,7 @@ class CypherRequestParsingTest {
 					]
 				}""";
 
-		assertThatExceptionOfType(JsonMappingException.class).isThrownBy(() -> objectMapper.readValue(payload, Queries.class))
+		assertThatExceptionOfType(JsonMappingException.class).isThrownBy(() -> objectMapper.readValue(payload, AnnotatedQuery.Container.class))
 				.havingRootCause()
 				.isInstanceOf(IllegalArgumentException.class)
 				.withMessageStartingWith("Cannot convert Unknown into a known type. Convertible types are ");
@@ -279,12 +285,10 @@ class CypherRequestParsingTest {
 					]
 				}""";
 
-		assertThatExceptionOfType(JsonMappingException.class).isThrownBy(() -> objectMapper.readValue(payload, Queries.class))
+		assertThatExceptionOfType(JsonMappingException.class).isThrownBy(() -> objectMapper.readValue(payload, AnnotatedQuery.Container.class))
 				.havingRootCause()
 				.isInstanceOf(IllegalArgumentException.class)
 				.withMessage("Value true (type BOOLEAN) for type Date has to be String-based.");
 
 	}
-*/
-
 }

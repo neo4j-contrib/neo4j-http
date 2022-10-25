@@ -24,13 +24,16 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetTime;
+import java.time.Period;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -41,9 +44,10 @@ import org.neo4j.driver.Value;
 import org.neo4j.driver.Values;
 import org.neo4j.driver.internal.types.InternalTypeSystem;
 import org.neo4j.driver.internal.value.NodeValue;
+import org.neo4j.driver.types.IsoDuration;
 import org.neo4j.driver.types.Node;
-import org.neo4j.http.app.AnnotatedQuery.Container;
-import org.neo4j.http.app.AnnotatedQuery.ResultFormat;
+import org.neo4j.http.db.AnnotatedQuery.Container;
+import org.neo4j.http.db.AnnotatedQuery.ResultFormat;
 import org.neo4j.http.app.Views;
 import org.neo4j.http.config.JacksonConfig;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
@@ -52,13 +56,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class DriverTypeSystemModuleTest {
+class ResponseRenderingTest {
 
 	private final ObjectMapper objectMapper;
 
 	private final Driver driver;
 
-	DriverTypeSystemModuleTest() {
+	ResponseRenderingTest() {
 
 		driver = mock(Driver.class);
 		when(driver.defaultTypeSystem()).thenReturn(InternalTypeSystem.TYPE_SYSTEM);
@@ -178,5 +182,46 @@ class DriverTypeSystemModuleTest {
 		assertThat(json).isEqualTo(String.format("{\"var\":%s}", expected.strip()));
 	}
 
+
+	@Nested
+	class TemporalAmountAdapterTest {
+
+		private final DefaultResponseModule.TemporalAmountAdapter underTest = new DefaultResponseModule.TemporalAmountAdapter();
+
+		@Test
+		public void internallyCreatedTypesShouldBeConvertedCorrect() {
+
+			assertThat(underTest.apply(Values.isoDuration(1, 0, 0, 0).asIsoDuration())).isEqualTo(Period.ofMonths(1));
+			assertThat(underTest.apply(Values.isoDuration(1, 1, 0, 0).asIsoDuration())).isEqualTo(Period.ofMonths(1).plusDays(1));
+			assertThat(underTest.apply(Values.isoDuration(1, 1, 1, 0).asIsoDuration()))
+				.isEqualTo(Values.isoDuration(1, 1, 1, 0).asIsoDuration());
+			assertThat(underTest.apply(Values.isoDuration(0, 0, 120, 1).asIsoDuration()))
+				.isEqualTo(Duration.ofMinutes(2).plusNanos(1));
+		}
+
+		@Test
+		public void durationsShouldStayDurations() {
+
+			Duration duration = ChronoUnit.MONTHS.getDuration().multipliedBy(13).plus(ChronoUnit.DAYS.getDuration().multipliedBy(32)).plusHours(25)
+				.plusMinutes(120);
+
+			assertThat(underTest.apply(Values.value(duration).asIsoDuration())).isEqualTo(duration);
+		}
+
+		@Test
+		public void periodsShouldStayPeriods() {
+
+			Period period = Period.between(LocalDate.of(2018, 11, 15), LocalDate.of(2020, 12, 24));
+
+			assertThat(underTest.apply(Values.value(period).asIsoDuration())).isEqualTo(period.normalized());
+		}
+
+		@Test // GH-2324
+		public void zeroDurationShouldReturnTheIsoDuration() {
+
+			IsoDuration zeroDuration = Values.isoDuration(0, 0, 0, 0).asIsoDuration();
+			assertThat(underTest.apply(zeroDuration)).isSameAs(zeroDuration);
+		}
+	}
 
 }

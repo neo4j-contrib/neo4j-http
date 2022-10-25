@@ -72,20 +72,20 @@ class DefaultNeo4jAdapter implements Neo4jAdapter {
 
 	@Override
 	@SuppressWarnings({"deprecation", "RedundantSuppression"})
-	public Mono<ResultContainer> f(Neo4jPrincipal principal, String query, String... additionalQueries) {
+	public Mono<ResultContainer> run(Neo4jPrincipal principal, AnnotatedQuery query, AnnotatedQuery... additionalQueries) {
 
-		Flux<String> queries = Flux.just(normalizeQuery(query));
+		Flux<AnnotatedQuery> queries = Flux.just(query);
 		if (additionalQueries != null && additionalQueries.length > 0) {
-			queries = queries.concatWith(Flux.fromStream(Arrays.stream(additionalQueries).map(this::normalizeQuery)));
+			queries = queries.concatWith(Flux.fromStream(Arrays.stream(additionalQueries)));
 		}
 
 		record ResultAndSummary(EagerResult result, ResultSummary summary) {
 		}
 
 		return queries.flatMapSequential(theQuery -> Mono.just(principal)
-				.zipWith(queryEvaluator.getExecutionRequirements(principal, theQuery))
+				.zipWith(queryEvaluator.getExecutionRequirements(principal, theQuery.text()))
 				.flatMap(env -> Mono.fromDirect(this.execute0(env, q -> {
-					var rxResult = q.run(query);
+					var rxResult = q.run(query.value());
 					return Mono.fromDirect(rxResult.keys())
 						.zipWith(Flux.from(rxResult.records()).collectList())
 						.map(EagerResult::success)

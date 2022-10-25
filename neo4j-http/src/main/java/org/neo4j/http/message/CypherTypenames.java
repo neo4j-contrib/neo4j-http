@@ -15,6 +15,11 @@
  */
 package org.neo4j.http.message;
 
+/**
+ * "Official" Cypher typenames.
+ *
+ * @author Michael J. Simons
+ */
 enum CypherTypenames {
 
 	NULL,

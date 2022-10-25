@@ -49,8 +49,8 @@ import javax.annotation.PostConstruct;
  */
 // We have to exclude the Endpoint because we cannot mock the sealed Neo4jAdapter that is needed there.
 @WebFluxTest(excludeFilters = {@ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {Endpoint.class})})
-@Import({CypherRequestConversionIT.Config.class, JacksonConfig.class})
-public class CypherRequestConversionIT {
+@Import({RequestParsingIT.Config.class, JacksonConfig.class})
+public class RequestParsingIT {
 
 	@TestConfiguration
 	static class MockConfiguration {
@@ -88,7 +88,7 @@ public class CypherRequestConversionIT {
 				.exchange()
 				.expectStatus().isOk()
 				.expectBody(String.class)
-				.isEqualTo("MATCH (n) RETURN n:{name=Neo4j-HTTP-Proxy}");
+				.isEqualTo("MATCH (n) RETURN n:{name: \"Neo4j-HTTP-Proxy\"}");
 	}
 
 	@Test
@@ -112,7 +112,7 @@ public class CypherRequestConversionIT {
 				.exchange()
 				.expectStatus().isOk()
 				.expectBody(String.class)
-				.isEqualTo("MATCH (n) RETURN n:{someDate=2022-10-21}");
+				.isEqualTo("MATCH (n) RETURN n:{someDate: 2022-10-21}");
 	}
 
 	@Test

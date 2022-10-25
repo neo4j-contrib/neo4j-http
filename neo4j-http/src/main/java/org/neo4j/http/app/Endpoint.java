@@ -16,6 +16,7 @@
 package org.neo4j.http.app;
 
 import org.neo4j.driver.Record;
+import org.neo4j.http.db.AnnotatedQuery;
 import org.neo4j.http.db.Neo4jAdapter;
 import org.neo4j.http.db.Neo4jPrincipal;
 import org.neo4j.http.db.ResultContainer;
@@ -50,7 +51,10 @@ public class Endpoint {
 	@PostMapping(value = "/b", produces = MediaType.APPLICATION_JSON_VALUE)
 	Mono<ResultContainer> wip1(@AuthenticationPrincipal Neo4jPrincipal authentication, @RequestBody AnnotatedQuery.Container queries) {
 
-		return neo4j.f(authentication, queries.value().get(0).value().text());
+		if (queries.value().isEmpty()) {
+			throw new IllegalArgumentException("No query given");
+		}
+		return neo4j.run(authentication, queries.value().get(0), queries.value().stream().skip(1).toArray(AnnotatedQuery[]::new));
 	}
 
 	@PostMapping(value = "/b", produces = MediaType.APPLICATION_NDJSON_VALUE)
