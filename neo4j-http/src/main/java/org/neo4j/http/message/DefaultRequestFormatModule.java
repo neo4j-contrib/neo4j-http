@@ -15,6 +15,23 @@
  */
 package org.neo4j.http.message;
 
+import java.io.IOException;
+import java.io.Serial;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
+import org.neo4j.driver.Query;
+import org.neo4j.driver.Value;
+import org.neo4j.driver.Values;
+import org.neo4j.http.db.AnnotatedQuery;
+import org.springframework.boot.jackson.JsonObjectDeserializer;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonParser;
@@ -26,22 +43,6 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.fasterxml.jackson.databind.node.ValueNode;
-
-import org.neo4j.driver.Query;
-import org.neo4j.driver.Value;
-import org.neo4j.driver.Values;
-import org.neo4j.http.db.AnnotatedQuery;
-import org.springframework.boot.jackson.JsonObjectDeserializer;
-
-import java.io.IOException;
-import java.io.Serial;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.BiFunction;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 /**
  * A module that understands both <a href="https://neo4j.com/docs/http-api/current/actions/query-format/">HTTP Query format</a> and
@@ -103,7 +104,9 @@ final class DefaultRequestFormatModule extends SimpleModule {
 			var query = codec.treeToValue(tree, Query.class);
 			var resultDataContents = codec.treeToValue(tree.get("resultDataContents"), AnnotatedQuery.ResultFormat[].class);
 			var includeStats = tree.has("includeStats") && tree.get("includeStats").asBoolean();
-			return new AnnotatedQuery(query, includeStats, resultDataContents);
+			return new AnnotatedQuery(query, includeStats,
+				resultDataContents == null ? Set.of(AnnotatedQuery.ResultFormat.ROW) : Arrays.stream(resultDataContents).collect(Collectors.collectingAndThen(Collectors.toSet(), Set::copyOf))
+			);
 		}
 	}
 

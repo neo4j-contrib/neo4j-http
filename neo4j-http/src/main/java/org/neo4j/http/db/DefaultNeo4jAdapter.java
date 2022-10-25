@@ -88,7 +88,7 @@ class DefaultNeo4jAdapter implements Neo4jAdapter {
 					var rxResult = q.run(query.value());
 					return Mono.fromDirect(rxResult.keys())
 						.zipWith(Flux.from(rxResult.records()).collectList())
-						.map(EagerResult::success)
+						.map(content -> EagerResult.success(content, query.resultDataContents(), driver.defaultTypeSystem()))
 						.flatMap(result -> Mono.just(result).zipWith(Mono.fromDirect(rxResult.consume()), ResultAndSummary::new));
 				})))
 				.onErrorResume(Neo4jException.class, e -> Mono.just(new ResultAndSummary(EagerResult.error(e), null))))

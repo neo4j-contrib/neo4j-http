@@ -16,6 +16,7 @@
 package org.neo4j.http.db;
 
 import java.util.List;
+import java.util.Set;
 
 import org.neo4j.driver.Query;
 
@@ -52,7 +53,7 @@ import org.neo4j.driver.Query;
  * @param includeStats       flag to include stats or not
  * @param resultDataContents One or more formats, not applicable to the streaming API
  */
-public record AnnotatedQuery(Query value, boolean includeStats, ResultFormat... resultDataContents) {
+public record AnnotatedQuery(Query value, boolean includeStats, Set<ResultFormat> resultDataContents) {
 
 	/**
 	 * Possible result formats
@@ -74,16 +75,6 @@ public record AnnotatedQuery(Query value, boolean includeStats, ResultFormat... 
 	 * @param value the content of this container
 	 */
 	public record Container(List<AnnotatedQuery> value) {
-	}
-
-	/**
-	 * Makes sure the {@link #resultDataContents} are never empty
-	 * @param value              The actual query
-	 * @param includeStats       flag to include stats or not
-	 * @param resultDataContents One or more formats, not applicable to the streaming API
-	 */
-	public AnnotatedQuery {
-		resultDataContents = resultDataContents == null || resultDataContents.length == 0 ? new ResultFormat[] {ResultFormat.ROW} : resultDataContents;
 	}
 
 	/**

@@ -119,7 +119,7 @@ class ResponseRenderingTest {
 				assertThat(queryWithFormat.value().text()).isEqualTo("CREATE (bike:Bike {weight: 10}) CREATE (frontWheel:Wheel {spokes: 3}) CREATE (backWheel:Wheel {spokes: 32}) CREATE p1 = (bike)-[:HAS {position: 1}]->(frontWheel) CREATE p2 = (bike)-[:HAS {position: 2} ]->(backWheel) RETURN bike, p1, p2");
 				assertThat(queryWithFormat.value().parameters().get("nodeId")).isEqualTo(Values.value("The Matrix"));
 				assertThat(queryWithFormat.value().parameters().get("someDate")).isEqualTo(Values.value(LocalDate.of(2022, 10, 21)));
-				assertThat(queryWithFormat.resultDataContents()).containsExactly(ResultFormat.ROW, ResultFormat.GRAPH);
+				assertThat(queryWithFormat.resultDataContents()).containsExactlyInAnyOrder(ResultFormat.ROW, ResultFormat.GRAPH);
 			});
 	}
 

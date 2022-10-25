@@ -20,6 +20,7 @@ import java.util.function.Consumer;
 import org.neo4j.driver.Driver;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -43,10 +44,14 @@ public final class Formats {
 				new DefaultResponseModule(driver.defaultTypeSystem()),
 				new JavaTimeModule()
 			);
+
 			builder.featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 			builder.featuresToDisable(SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS);
+
 			builder.featuresToEnable(MapperFeature.DEFAULT_VIEW_INCLUSION);
 			builder.featuresToEnable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
+
+			builder.serializationInclusion(JsonInclude.Include.NON_EMPTY);
 		};
 	}
 
