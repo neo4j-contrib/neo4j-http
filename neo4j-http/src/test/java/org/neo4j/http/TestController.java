@@ -15,8 +15,8 @@
  */
 package org.neo4j.http;
 
+import org.neo4j.http.app.AnnotatedQuery;
 import org.neo4j.http.db.Neo4jPrincipal;
-import org.neo4j.http.message.CypherRequest;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,10 +37,10 @@ public class TestController {
 	}
 
 	@PostMapping("/statementrequest")
-	public String index(@RequestBody CypherRequest request) {
-		CypherRequest.StatementAndParameter statementAndParameter = request.statements().get(0);
-		String statement = statementAndParameter.statement();
-		String parameters = statementAndParameter.parameters().toString();
+	public String index(@RequestBody AnnotatedQuery.Container request) {
+		var annotatedQuery = request.value().get(0);
+		var statement = annotatedQuery.value().text();
+		var parameters = annotatedQuery.value().parameters().toString();
 		return statement + ":" + parameters;
 	}
 }

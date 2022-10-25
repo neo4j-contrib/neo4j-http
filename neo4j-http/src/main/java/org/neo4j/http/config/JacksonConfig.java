@@ -15,6 +15,8 @@
  */
 package org.neo4j.http.config;
 
+import java.util.Map;
+
 import org.neo4j.driver.Driver;
 import org.neo4j.http.message.DriverTypeSystemModule;
 import org.neo4j.http.message.ParameterTypesModule;
@@ -50,6 +52,7 @@ public class JacksonConfig {
 			builder.featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 			builder.featuresToDisable(SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS);
 			builder.featuresToEnable(MapperFeature.DEFAULT_VIEW_INCLUSION);
+			builder.featuresToEnable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
 		};
 	}
 }

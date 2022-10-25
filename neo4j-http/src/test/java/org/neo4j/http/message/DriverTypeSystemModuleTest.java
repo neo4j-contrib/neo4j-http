@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -41,6 +42,8 @@ import org.neo4j.driver.Values;
 import org.neo4j.driver.internal.types.InternalTypeSystem;
 import org.neo4j.driver.internal.value.NodeValue;
 import org.neo4j.driver.types.Node;
+import org.neo4j.http.app.AnnotatedQuery.Container;
+import org.neo4j.http.app.AnnotatedQuery.ResultFormat;
 import org.neo4j.http.app.Views;
 import org.neo4j.http.config.JacksonConfig;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
@@ -86,6 +89,32 @@ class DriverTypeSystemModuleTest {
 			Arguments.of(Values.value(LocalDate.of(2022, 10, 21)), "{\"$type\":\"Date\",\"_value\":\"2022-10-21\"}"),
 			Arguments.of(mockNode(), "{\"$type\":\"Node\",\"_value\":{\"_labels\":[\"L1\",\"L2\",\"$L3\"],\"_props\":{\"s\":\"foo\",\"n\":4711}}}")
 		);
+	}
+
+	@Test
+	void shouldDeserializeAnnotatedQueries() throws JsonProcessingException {
+		var request  = """
+			{
+			  "statements": [
+			    {
+			      "statement": "CREATE (bike:Bike {weight: 10}) CREATE (frontWheel:Wheel {spokes: 3}) CREATE (backWheel:Wheel {spokes: 32}) CREATE p1 = (bike)-[:HAS {position: 1}]->(frontWheel) CREATE p2 = (bike)-[:HAS {position: 2} ]->(backWheel) RETURN bike, p1, p2",
+			      "parameters": {
+			        "nodeId": "The Matrix",
+			        "someDate": {"$type": "Date", "_value": "2022-10-21"}
+			      },
+			      "resultDataContents": ["row", "graph"]
+			    }
+			  ]
+			}
+			""";
+		var q = objectMapper.readValue(request, Container.class);
+		assertThat(q.value()).hasSize(1).first()
+			.satisfies(queryWithFormat -> {
+				assertThat(queryWithFormat.value().text()).isEqualTo("CREATE (bike:Bike {weight: 10}) CREATE (frontWheel:Wheel {spokes: 3}) CREATE (backWheel:Wheel {spokes: 32}) CREATE p1 = (bike)-[:HAS {position: 1}]->(frontWheel) CREATE p2 = (bike)-[:HAS {position: 2} ]->(backWheel) RETURN bike, p1, p2");
+				assertThat(queryWithFormat.value().parameters().get("nodeId")).isEqualTo(Values.value("The Matrix"));
+				assertThat(queryWithFormat.value().parameters().get("someDate")).isEqualTo(Values.value(LocalDate.of(2022, 10, 21)));
+				assertThat(queryWithFormat.resultDataContents()).containsExactly(ResultFormat.ROW, ResultFormat.GRAPH);
+			});
 	}
 
 	@ParameterizedTest

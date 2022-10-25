@@ -17,12 +17,19 @@ package org.neo4j.http.message;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.ObjectCodec;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.fasterxml.jackson.databind.node.ValueNode;
+import com.fasterxml.jackson.databind.type.TypeFactory;
+
+import org.neo4j.driver.Query;
+import org.neo4j.driver.Value;
+import org.neo4j.driver.Values;
+import org.neo4j.http.app.AnnotatedQuery;
 import org.springframework.boot.jackson.JsonObjectDeserializer;
 
 import java.io.IOException;
@@ -45,8 +52,9 @@ import java.util.function.Function;
  * and contributes a {@link JsonObjectDeserializer} for all excluding Nodes, Relationships and Paths.
  *
  * @author Gerrit Meier
+ * @author Michael J. Simons
  */
-public class ParameterTypesModule extends SimpleModule {
+public final class ParameterTypesModule extends SimpleModule {
 
 	@Serial
 	private static final long serialVersionUID = 6857894267001773659L;
@@ -55,35 +63,81 @@ public class ParameterTypesModule extends SimpleModule {
 	 * Default instance
 	 */
 	public ParameterTypesModule() {
-		this.addDeserializer(Object.class, new ParameterDeserializer());
+		this.addDeserializer(Value.class, new ParameterDeserializer());
+		this.addDeserializer(AnnotatedQuery.class, new F());
 	}
 
-	private static class ParameterDeserializer extends JsonObjectDeserializer<Object> {
+	private static class F extends JsonObjectDeserializer<AnnotatedQuery> {
 
 		@Override
-		protected Object deserializeObject(JsonParser jsonParser, DeserializationContext context, ObjectCodec codec, JsonNode tree) throws IOException {
+		protected AnnotatedQuery deserializeObject(JsonParser jsonParser, DeserializationContext context, ObjectCodec codec, JsonNode tree) throws IOException {
+			var query = codec.treeToValue(tree, Query.class);
+			var resultDataContents = codec.treeToValue(tree.get("resultDataContents"), AnnotatedQuery.ResultFormat[].class);
+			var includeStats = tree.has("includeStats") && tree.get("includeStats").asBoolean();
+			return new AnnotatedQuery(query, includeStats, resultDataContents);
+		}
+	}
+
+	private static class ParameterDeserializer extends JsonObjectDeserializer<Value> {
+
+		private volatile Class<?> stringToValueMapType;
+
+		private volatile Class<?> valueListType;
+
+		public Class<?> getStringToValueMapType(TypeFactory typeFactory) {
+
+			Class<?> type = this.stringToValueMapType;
+			if (type == null) {
+				synchronized (this) {
+					type = this.stringToValueMapType;
+					if (type == null) {
+						this.stringToValueMapType = typeFactory.constructType(new TypeReference<Map<String, Value>>() {}).getRawClass();
+						type = this.stringToValueMapType;
+					}
+				}
+			}
+			return type;
+		}
+
+		public Class<?> getValueListType(TypeFactory typeFactory) {
+
+			Class<?> type = this.valueListType;
+			if (type == null) {
+				synchronized (this) {
+					type = this.valueListType;
+					if (type == null) {
+						this.valueListType = typeFactory.constructType(new TypeReference<List<Value>>() {}).getRawClass();
+						type = this.valueListType;
+					}
+				}
+			}
+			return type;
+		}
+
+		@Override
+		protected Value deserializeObject(JsonParser jsonParser, DeserializationContext context, ObjectCodec codec, JsonNode tree) throws IOException {
 
 
 			if (tree.isValueNode()) {
 				if (tree.isTextual()) {
-					return tree.asText();
+					return Values.value(tree.asText());
 				}
 				if (tree.isFloatingPointNumber()) {
-					return tree.asDouble();
+					return Values.value(tree.asDouble());
 				}
 				if (tree.isBoolean()) {
-					return tree.asBoolean();
+					return Values.value(tree.asBoolean());
 				}
 				if (tree.isInt()) {
-					return tree.asInt();
+					return Values.value(tree.asInt());
 				}
 				if (tree.isNumber()) {
-					return tree.asLong();
+					return Values.value(tree.asLong());
 				}
 			}
 			if (tree.isContainerNode()) {
 				if (tree.getNodeType().equals(JsonNodeType.ARRAY)) {
-					return jsonParser.getCodec().treeToValue(tree, List.class);
+					return Values.value(codec.treeToValue(tree, getValueListType(context.getTypeFactory())));
 				}
 				if (tree.getNodeType().equals(JsonNodeType.OBJECT)) {
 					JsonNode customType = tree.get(Fieldnames.CYPHER_TYPE);
@@ -93,14 +147,13 @@ public class ParameterTypesModule extends SimpleModule {
 							throw new IllegalArgumentException("Cannot convert %s into a known type. Convertible types are %s".formatted(customTypeName, ParameterConverter.CONVERTERS.keySet()));
 						}
 						ValueNode typeValue = tree.get(Fieldnames.CYPHER_VALUE).require();
-						return ParameterConverter.CONVERTER.apply(customTypeName, typeValue);
+						return Values.value(ParameterConverter.CONVERTER.apply(customTypeName, typeValue));
 					}
 
-					return jsonParser.getCodec().treeToValue(tree, Map.class);
+					return Values.value(codec.treeToValue(tree, getStringToValueMapType(context.getTypeFactory())));
 				}
 			}
 			throw new IllegalArgumentException("Cannot parse %s as a valid parameter type".formatted(tree));
-
 		}
 	}
 

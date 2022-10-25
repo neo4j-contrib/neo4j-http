@@ -18,10 +18,12 @@ package org.neo4j.http.message;
 import java.io.IOException;
 import java.io.Serial;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import org.neo4j.driver.Query;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.exceptions.Neo4jException;
@@ -35,8 +37,10 @@ import org.neo4j.driver.types.Relationship;
 import org.neo4j.driver.types.Type;
 import org.neo4j.driver.types.TypeSystem;
 import org.neo4j.driver.util.Pair;
+import org.neo4j.http.app.AnnotatedQuery;
 import org.neo4j.http.app.Views;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIncludeProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -78,6 +82,8 @@ public final class DriverTypeSystemModule extends SimpleModule {
 		this.setMixInAnnotation(Notification.class, NotificationMixin.class);
 		this.setMixInAnnotation(InputPosition.class, InputPositionMixIn.class);
 		this.setMixInAnnotation(Neo4jException.class, Neo4jExceptionMixIn.class);
+		this.setMixInAnnotation(AnnotatedQuery.Container.class, AnnotatedQueryContainerMixIn.class);
+		this.setMixInAnnotation(Query.class, QueryMixIn.class);
 	}
 
 	private boolean hasSimpleType(Value value) {
@@ -112,6 +118,21 @@ public final class DriverTypeSystemModule extends SimpleModule {
 
 		@JsonProperty
 		int offset();
+	}
+
+	static abstract class AnnotatedQueryContainerMixIn {
+
+		@JsonCreator
+		public AnnotatedQueryContainerMixIn(@JsonProperty("statements") List<AnnotatedQuery> value) {
+		}
+	}
+
+	public static abstract class QueryMixIn {
+
+		@JsonCreator
+		public QueryMixIn(@JsonProperty("statement") String statement, @JsonProperty("parameters") Map<String, Object> parameters) {
+		}
+
 	}
 
 	@JsonIncludeProperties({"code", "message"})

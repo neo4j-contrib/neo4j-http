@@ -55,7 +55,6 @@ enum CypherTypenames {
 
 	Path;
 
-
 	private final String value;
 
 	CypherTypenames() {

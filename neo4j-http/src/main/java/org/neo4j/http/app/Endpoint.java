@@ -48,8 +48,9 @@ public class Endpoint {
 
 	@JsonView(Views.NEO4J_44_DEFAULT.class)
 	@PostMapping(value = "/b", produces = MediaType.APPLICATION_JSON_VALUE)
-	Mono<ResultContainer> wip1(@AuthenticationPrincipal Neo4jPrincipal authentication, @RequestBody String query) {
-		return neo4j.f(authentication, query);
+	Mono<ResultContainer> wip1(@AuthenticationPrincipal Neo4jPrincipal authentication, @RequestBody AnnotatedQuery.Container queries) {
+
+		return neo4j.f(authentication, queries.value().get(0).value().text());
 	}
 
 	@PostMapping(value = "/b", produces = MediaType.APPLICATION_NDJSON_VALUE)
