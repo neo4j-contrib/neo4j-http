@@ -51,7 +51,7 @@ public final class Formats {
 			builder.featuresToEnable(MapperFeature.DEFAULT_VIEW_INCLUSION);
 			builder.featuresToEnable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
 
-			builder.serializationInclusion(JsonInclude.Include.NON_EMPTY);
+			builder.serializationInclusion(JsonInclude.Include.NON_ABSENT);
 		};
 	}
 

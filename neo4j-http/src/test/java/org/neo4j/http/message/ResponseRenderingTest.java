@@ -40,6 +40,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.neo4j.driver.Driver;
+import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.Values;
 import org.neo4j.driver.internal.types.InternalTypeSystem;
@@ -99,7 +100,7 @@ class ResponseRenderingTest {
 
 	@Test
 	void shouldDeserializeAnnotatedQueries() throws JsonProcessingException {
-		var request  = """
+		var request = """
 			{
 			  "statements": [
 			    {
@@ -184,6 +185,15 @@ class ResponseRenderingTest {
 		assertThat(json).isEqualTo(String.format("{\"var\":%s}", expected.strip()));
 	}
 
+	@Test
+	void shouldSerializeRecordWithObject() throws JsonProcessingException {
+
+		var record = mock(Record.class);
+		var json = objectMapper
+			.writerWithView(Views.NEO4J_44_DEFAULT.class)
+			.writeValueAsString(record);
+		assertThat(json).isEqualTo("{\"row\":[],\"meta\":[]}");
+	}
 
 	@Nested
 	class TemporalAmountAdapterTest {

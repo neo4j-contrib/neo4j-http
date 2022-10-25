@@ -35,6 +35,7 @@ import org.neo4j.driver.exceptions.Neo4jException;
 import org.neo4j.driver.exceptions.value.LossyCoercion;
 import org.neo4j.driver.summary.InputPosition;
 import org.neo4j.driver.summary.Notification;
+import org.neo4j.driver.summary.SummaryCounters;
 import org.neo4j.driver.types.Entity;
 import org.neo4j.driver.types.Node;
 import org.neo4j.driver.types.Path;
@@ -43,6 +44,7 @@ import org.neo4j.driver.types.Type;
 import org.neo4j.driver.types.TypeSystem;
 import org.neo4j.driver.util.Pair;
 import org.neo4j.http.app.Views;
+import org.neo4j.http.db.EagerResult;
 
 import com.fasterxml.jackson.annotation.JsonIncludeProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -84,6 +86,8 @@ final class DefaultResponseModule extends SimpleModule {
 
 		this.addSerializer(Record.class, new RecordSerializer());
 		this.addSerializer(Value.class, new ValueSerializer());
+		this.addSerializer(EagerResult.ResultData.class, new ResultDataSerializer());
+		this.addSerializer(SummaryCounters.class, new SummaryCountersSerializer());
 
 		this.setMixInAnnotation(Notification.class, NotificationMixIn.class);
 		this.setMixInAnnotation(InputPosition.class, InputPositionMixIn.class);
@@ -131,6 +135,73 @@ final class DefaultResponseModule extends SimpleModule {
 		String code();
 	}
 
+	private static class SummaryCountersSerializer extends StdSerializer<SummaryCounters> {
+
+		@Serial
+		private static final long serialVersionUID = -4434233555324168878L;
+
+		SummaryCountersSerializer() {
+			super(SummaryCounters.class);
+		}
+
+		@Override
+		public void serialize(SummaryCounters value, JsonGenerator gen, SerializerProvider provider) throws IOException {
+			if (value == null) {
+				return;
+			}
+			gen.writeStartObject();
+			gen.writeBooleanField("contains_updates", value.containsUpdates());
+			gen.writeNumberField("nodes_created", value.nodesCreated());
+			gen.writeNumberField("nodes_deleted", value.nodesDeleted());
+			gen.writeNumberField("properties_set", value.propertiesSet());
+			gen.writeNumberField("relationships_created", value.relationshipsCreated());
+			gen.writeNumberField("relationship_deleted", value.relationshipsDeleted());
+			gen.writeNumberField("labels_added", value.labelsAdded());
+			gen.writeNumberField("labels_removed", value.labelsRemoved());
+			gen.writeNumberField("indexes_added", value.indexesAdded());
+			gen.writeNumberField("indexes_removed", value.indexesRemoved());
+			gen.writeNumberField("constraints_added", value.constraintsAdded());
+			gen.writeNumberField("constraints_removed", value.constraintsRemoved());
+			gen.writeBooleanField("contains_system_updates", value.containsSystemUpdates());
+			gen.writeNumberField("system_updates", value.systemUpdates());
+			gen.writeEndObject();
+		}
+	}
+
+	private static class ResultDataSerializer extends StdSerializer<EagerResult.ResultData> {
+
+		@Serial
+		private static final long serialVersionUID = 8801941034117580880L;
+
+		ResultDataSerializer() {
+			super(EagerResult.ResultData.class);
+		}
+
+		@Override
+		public void serialize(EagerResult.ResultData value, JsonGenerator gen, SerializerProvider provider) throws IOException {
+
+			if (value.records() == null && value.graph() == null && (value.rest() == null || value.rest().isEmpty())) {
+				return;
+			}
+
+			gen.writeStartObject();
+			if (value.records() != null) {
+				var recordSerializer = provider.findValueSerializer(Record.class);
+				recordSerializer.serialize(value.records(), gen, provider);
+			}
+			if (value.graph() != null) {
+				gen.writeObjectField("graph", value.graph());
+			}
+
+			if (value.rest() != null && !value.rest().isEmpty()) {
+				gen.writeObjectField("rest", value.rest());
+			}
+
+			gen.writeEndObject();
+		}
+	}
+
+
 	private final class RecordSerializer extends StdSerializer<Record> {
 
 		@Serial
@@ -144,9 +215,11 @@ final class DefaultResponseModule extends SimpleModule {
 		public void serialize(Record value, JsonGenerator json, SerializerProvider serializerProvider) throws IOException {
 
 			var valueSerializer = serializerProvider.findValueSerializer(Value.class);
-
-			json.writeStartObject();
 			if (serializerProvider.getActiveView() == Views.NEO4J_44_DEFAULT.class) {
+				boolean needsObject = !json.getOutputContext().inObject();
+				if (needsObject) {
+					json.writeStartObject();
+				}
 				json.writeArrayFieldStart("row");
 				for (Value column : value.values()) {
 					valueSerializer.serialize(column, json, serializerProvider);
@@ -175,13 +248,17 @@ final class DefaultResponseModule extends SimpleModule {
 					}
 				}
 				json.writeEndArray();
+				if (needsObject) {
+					json.writeEndObject();
+				}
 			} else {
+				json.writeStartObject();
 				for (Pair<String, Value> pair : value.fields()) {
 					json.writeFieldName(pair.key());
 					valueSerializer.serialize(pair.value(), json, serializerProvider);
 				}
+				json.writeEndObject();
 			}
-			json.writeEndObject();
 		}
 
 		@SuppressWarnings("deprecation")

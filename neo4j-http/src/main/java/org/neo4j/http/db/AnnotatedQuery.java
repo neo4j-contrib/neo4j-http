@@ -66,7 +66,11 @@ public record AnnotatedQuery(Query value, boolean includeStats, Set<ResultFormat
 		/**
 		 * A somewhat graph-like format, needs to be explicitly requested.
 		 */
-		GRAPH;
+		GRAPH,
+		/**
+		 * Subset of the old rest format.
+		 */
+		REST
 	}
 
 	/**

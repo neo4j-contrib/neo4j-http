@@ -33,17 +33,19 @@ public interface Neo4jAdapter {
 	/**
 	 * Streams the records of the given query
 	 * @param principal The authenticated principal
+	 * @param database The database in which to execute the query
 	 * @param query The query to execute
 	 * @return A stream of records
 	 */
-	Flux<Record> stream(Neo4jPrincipal principal, String query);
+	Flux<Record> stream(Neo4jPrincipal principal, String database, String query);
 
 	/**
 	 * Executes one or more queries and eagerly collects toe results into a {@link ResultContainer}.
 	 * @param principal The authenticated principal
 	 * @param query The query to execute
+	 * @param database The database in which to execute the query
 	 * @param additionalQueries Additional queries to execute
 	 * @return An eagerly populated result container
 	 */
-	Mono<ResultContainer> run(Neo4jPrincipal principal, AnnotatedQuery query, AnnotatedQuery... additionalQueries);
+	Mono<ResultContainer> run(Neo4jPrincipal principal, String database, AnnotatedQuery query, AnnotatedQuery... additionalQueries);
 }

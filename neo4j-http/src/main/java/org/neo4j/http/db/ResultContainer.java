@@ -34,7 +34,7 @@ public final class ResultContainer {
 	final List<Notification> notifications;
 	final List<Neo4jException> errors;
 
-	ResultContainer() {
+	public ResultContainer() {
 		this.results = new ArrayList<>();
 		this.notifications = new ArrayList<>();
 		this.errors = new ArrayList<>();
@@ -58,6 +58,6 @@ public final class ResultContainer {
 	 * {@return an unmodifiable list of Neo4j errors}
 	 */
 	public List<Neo4jException> getErrors() {
-		return errors;
+		return Collections.unmodifiableList(errors);
 	}
 }

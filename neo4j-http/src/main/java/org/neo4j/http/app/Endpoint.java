@@ -15,13 +15,19 @@
  */
 package org.neo4j.http.app;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Optional;
+
 import org.neo4j.driver.Record;
 import org.neo4j.http.db.AnnotatedQuery;
 import org.neo4j.http.db.Neo4jAdapter;
 import org.neo4j.http.db.Neo4jPrincipal;
 import org.neo4j.http.db.ResultContainer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.MediaType;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -48,17 +54,20 @@ public class Endpoint {
 	}
 
 	@JsonView(Views.NEO4J_44_DEFAULT.class)
-	@PostMapping(value = "/b", produces = MediaType.APPLICATION_JSON_VALUE)
-	Mono<ResultContainer> wip1(@AuthenticationPrincipal Neo4jPrincipal authentication, @RequestBody AnnotatedQuery.Container queries) {
-
+	@PostMapping(value = {"/db/{database}/tx/commit", "/db/data/transaction/commit"}, produces = MediaType.APPLICATION_JSON_VALUE)
+	Mono<ResultContainer> wip1(
+		@AuthenticationPrincipal Neo4jPrincipal authentication,
+		@PathVariable(required = false) Optional<String> database,
+		@RequestBody AnnotatedQuery.Container queries,
+	) {
 		if (queries.value().isEmpty()) {
-			throw new IllegalArgumentException("No query given");
+			return Mono.just(new ResultContainer());
 		}
-		return neo4j.run(authentication, queries.value().get(0), queries.value().stream().skip(1).toArray(AnnotatedQuery[]::new));
+		return neo4j.run(authentication, database.orElse("neo4j"), queries.value().get(0), queries.value().stream().skip(1).toArray(AnnotatedQuery[]::new));
 	}
 
 	@PostMapping(value = "/b", produces = MediaType.APPLICATION_NDJSON_VALUE)
 	Flux<Record> wip2(@AuthenticationPrincipal Neo4jPrincipal authentication, @RequestBody String query) {
-		return neo4j.stream(authentication, query);
+		return neo4j.stream(authentication, "neo4j", query);
 	}
 }

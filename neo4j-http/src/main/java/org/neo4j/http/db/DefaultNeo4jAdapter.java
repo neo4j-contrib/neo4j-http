@@ -35,7 +35,7 @@ import org.springframework.stereotype.Service;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 /**
  * @author Michael J. Simons
@@ -62,17 +62,16 @@ class DefaultNeo4jAdapter implements Neo4jAdapter {
 
 	@Override
 	@SuppressWarnings({"deprecation", "RedundantSuppression"})
-	public Flux<Record> stream(Neo4jPrincipal principal, String query) {
+	public Flux<Record> stream(Neo4jPrincipal principal, String database, String query) {
 
 		var theQuery = normalizeQuery(query);
-		return Mono.just(principal)
-			.zipWith(queryEvaluator.getExecutionRequirements(principal, theQuery))
-			.flatMapMany(env -> this.execute0(env, q -> Flux.from(q.run(query).records())));
+		return queryEvaluator.getExecutionRequirements(principal, theQuery)
+			.flatMapMany(requirements -> this.execute0(principal, database, requirements, q -> Flux.from(q.run(query).records())));
 	}
 
 	@Override
 	@SuppressWarnings({"deprecation", "RedundantSuppression"})
-	public Mono<ResultContainer> run(Neo4jPrincipal principal, AnnotatedQuery query, AnnotatedQuery... additionalQueries) {
+	public Mono<ResultContainer> run(Neo4jPrincipal principal, String database, AnnotatedQuery query, AnnotatedQuery... additionalQueries) {
 
 		Flux<AnnotatedQuery> queries = Flux.just(query);
 		if (additionalQueries != null && additionalQueries.length > 0) {
@@ -82,16 +81,17 @@ class DefaultNeo4jAdapter implements Neo4jAdapter {
 		record ResultAndSummary(EagerResult result, ResultSummary summary) {
 		}
 
-		return queries.flatMapSequential(theQuery -> Mono.just(principal)
-				.zipWith(queryEvaluator.getExecutionRequirements(principal, theQuery.text()))
-				.flatMap(env -> Mono.fromDirect(this.execute0(env, q -> {
-					var rxResult = q.run(query.value());
+		return queries.flatMapSequential(theQuery -> Mono.just(theQuery).zipWith(queryEvaluator.getExecutionRequirements(principal, theQuery.text()))
+				.flatMap(q -> Mono.fromDirect(this.execute0(principal, database, q.getT2(), runner -> {
+					var annotatedQuery = q.getT1();
+					var rxResult = runner.run(annotatedQuery.value());
 					return Mono.fromDirect(rxResult.keys())
 						.zipWith(Flux.from(rxResult.records()).collectList())
-						.map(content -> EagerResult.success(content, query.resultDataContents(), driver.defaultTypeSystem()))
+						.flatMap(v -> Mono.just(v).zipWith(Mono.fromDirect(rxResult.consume()), (t, s) -> Tuples.of(t.getT1(), t.getT2(), s)))
+						.map(content -> EagerResult.success(content, annotatedQuery.includeStats(), annotatedQuery.resultDataContents(), driver.defaultTypeSystem()))
 						.flatMap(result -> Mono.just(result).zipWith(Mono.fromDirect(rxResult.consume()), ResultAndSummary::new));
-				})))
-				.onErrorResume(Neo4jException.class, e -> Mono.just(new ResultAndSummary(EagerResult.error(e), null))))
+				}))).onErrorResume(Neo4jException.class, e -> Mono.just(new ResultAndSummary(EagerResult.error(e), null)))
+			)
 			.collect(ResultContainer::new, (container, element) -> {
 				if (element.result().isError()) {
 					container.errors.add(element.result().exception());
@@ -103,12 +103,11 @@ class DefaultNeo4jAdapter implements Neo4jAdapter {
 	}
 
 	@SuppressWarnings("deprecation")
-	<T> Publisher<T> execute0(Tuple2<Neo4jPrincipal, QueryEvaluator.ExecutionRequirements> env, Function<RxQueryRunner, Publisher<T>> f) {
+	<T> Publisher<T> execute0(Neo4jPrincipal principal, String database, QueryEvaluator.ExecutionRequirements requirements, Function<RxQueryRunner, Publisher<T>> query) {
 
-		var requirements = env.getT2();
 		var sessionSupplier = queryEvaluator.isEnterpriseEdition().
 			flatMap(v -> {
-				var builder = v ? SessionConfig.builder().withImpersonatedUser(env.getT1().username()) : SessionConfig.builder();
+				var builder = v ? SessionConfig.builder().withImpersonatedUser(principal.username()) : SessionConfig.builder();
 				var sessionConfig = builder
 					.withDefaultAccessMode(requirements.target() == QueryEvaluator.Target.WRITERS ? AccessMode.WRITE : AccessMode.READ)
 					.build();
@@ -117,17 +116,17 @@ class DefaultNeo4jAdapter implements Neo4jAdapter {
 
 		Flux<T> flow;
 		if (requirements.transactionMode() == QueryEvaluator.TransactionMode.IMPLICIT) {
-			flow = Flux.usingWhen(sessionSupplier, f, RxSession::close);
+			flow = Flux.usingWhen(sessionSupplier, query, RxSession::close);
 		} else {
 			flow = switch (requirements.target()) {
 				case WRITERS -> Flux.usingWhen(
 					sessionSupplier,
-					session -> session.writeTransaction(f::apply),
+					session -> session.writeTransaction(query::apply),
 					RxSession::close
 				);
 				case READERS -> Flux.usingWhen(
 					sessionSupplier,
-					session -> session.readTransaction(f::apply),
+					session -> session.readTransaction(query::apply),
 					RxSession::close
 				);
 			};
