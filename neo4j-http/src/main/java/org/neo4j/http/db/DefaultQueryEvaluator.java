@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.logging.Level;
 import java.util.regex.Pattern;
 
 import org.neo4j.cypher.internal.ast.factory.ASTExceptionFactory;
@@ -158,10 +159,11 @@ class DefaultQueryEvaluator implements QueryEvaluator {
 		// https://github.com/neo4j/neo4j-java-driver/issues/1320
 		var atIndex = plan.operatorType().indexOf('@'); // Aura doesn't have the DB name in the operators… Just because, I guess.
 		var operatorType = atIndex < 0 ? plan.operatorType() : plan.operatorType().substring(0, atIndex);
+		operatorType = operatorType.replaceAll("\\(\\w+\\)", "");
 		try {
 			operator = CypherOperator.valueOf(operatorType);
 		} catch (IllegalArgumentException e) {
-			LOGGER.warning(() -> String.format("An unknown operator was encountered: %s", operatorType));
+			LOGGER.log(Level.WARNING, "An unknown operator was encountered: {0}", operatorType);
 		}
 		operatorSink.accept(operator);
 		if (!plan.children().isEmpty()) {

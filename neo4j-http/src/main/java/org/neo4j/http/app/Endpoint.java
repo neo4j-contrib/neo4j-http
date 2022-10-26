@@ -15,17 +15,15 @@
  */
 package org.neo4j.http.app;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
+import org.neo4j.driver.Query;
 import org.neo4j.driver.Record;
 import org.neo4j.http.db.AnnotatedQuery;
 import org.neo4j.http.db.Neo4jAdapter;
 import org.neo4j.http.db.Neo4jPrincipal;
 import org.neo4j.http.db.ResultContainer;
-import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.MediaType;
-import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,6 +42,8 @@ import reactor.core.publisher.Mono;
 @RequestMapping("/")
 public class Endpoint {
 
+	private static final String DEFAULT_DATABASE_NAME = "neo4j";
+
 	private final Neo4jAdapter neo4j;
 
 	/**
@@ -55,19 +55,19 @@ public class Endpoint {
 
 	@JsonView(Views.NEO4J_44_DEFAULT.class)
 	@PostMapping(value = {"/db/{database}/tx/commit", "/db/data/transaction/commit"}, produces = MediaType.APPLICATION_JSON_VALUE)
-	Mono<ResultContainer> wip1(
+	Mono<ResultContainer> run(
 		@AuthenticationPrincipal Neo4jPrincipal authentication,
 		@PathVariable(required = false) Optional<String> database,
-		@RequestBody AnnotatedQuery.Container queries,
+		@RequestBody AnnotatedQuery.Container queries
 	) {
 		if (queries.value().isEmpty()) {
 			return Mono.just(new ResultContainer());
 		}
-		return neo4j.run(authentication, database.orElse("neo4j"), queries.value().get(0), queries.value().stream().skip(1).toArray(AnnotatedQuery[]::new));
+		return neo4j.run(authentication, database.orElse(DEFAULT_DATABASE_NAME), queries.value().get(0), queries.value().stream().skip(1).toArray(AnnotatedQuery[]::new));
 	}
 
-	@PostMapping(value = "/b", produces = MediaType.APPLICATION_NDJSON_VALUE)
-	Flux<Record> wip2(@AuthenticationPrincipal Neo4jPrincipal authentication, @RequestBody String query) {
-		return neo4j.stream(authentication, "neo4j", query);
+	@PostMapping(value = "/db/{database}/tx/commit", produces = MediaType.APPLICATION_NDJSON_VALUE)
+	Flux<Record> stream(@AuthenticationPrincipal Neo4jPrincipal authentication, @PathVariable String database, @RequestBody Query query) {
+		return neo4j.stream(authentication, database, query);
 	}
 }

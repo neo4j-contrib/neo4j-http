@@ -18,70 +18,124 @@ Neo4j-HTTP provides an HTTP API for Neo4j that runs externally to the core produ
 
 == Main areas of work
 
-Those are open topics:
+Those are the topics evaluated
 
-- Create authenticator based on driver (when same password in basic auth as driver users, use that driver, otherwise create new instance and try to get a connection)
-- Provide driver caching
+- Create authenticator based on driver (when same password in basic auth as driver users, use that driver, otherwise create new instance and try to get a connection) ✅
 - Per driver instance bookmark management
-- Guestimator
-- Use Jackson proper for formats
+- Guestimator ✅
+- Use Jackson proper for formats ✅
 - Provide an option to run this as a Neo4j plugin similar to GDS Arrows (https://github.com/neo-technology/graph-analytics/blob/master/private/arrow/src/main/java/com/neo4j/gds/arrow/server/GdsFlightServerExtension.java)
-- Bookmarkmanager (similar like SDN / Migrations or see if 5.x stuff is usable)
-- Do as little as possible type conversion everywhere. Use Jackson as imperative as possible and avoid a lot of reflection
+- Bookmark manager (used the driver itself) ✅
+- Do as little as possible type conversion everywhere. Use Jackson as imperative as possible and avoid a lot of reflection ✅
 
 
-== Notes
+== Architecture
 
-* There's an ADR wrt session auth. During discussing it was noted that we can open only one session in the auth provider
-and stick that to the authenticated principal
+This PoC uses the reactive Neo4j-Java-Driver to connect to any Neo4j instance, doesn't matter if on-prem or cloud (AuraDB), single instance or cluster. All versions that the currently used driver supports are supported too.
 
-Dependency management in separate, as boot comes with its own and the dependencies in the plugin and the api does not really overlap
+=== Authentication
 
-=== Async or not
+All endpoints are protected via HTTP Basic Auth, analog to the current existing Neo4j-HTTP API. The username / password is the same as your Neo4j instance, exactly as it is today with an on-prem Neo4j instance.
 
-in general I am a fan of
-https://spring.io/blog/2022/10/11/embracing-virtual-threads
+WARNING: If you ever should think putting this PoC in protoduction, make sure the traffic to it is over HTTPS and properly encrypted! You have been warned.
 
-> What we can say is that the most likely scenario in which you can benefit without almost any change, is if you’re currently not doing anything asynchronous at all (not even Servlet 3.1 style async requests, or otherwise you’ll probably need to make some revisions to align better). And of course, there would have to be some actual I/O or other thread parking for Loom to bring benefits.
+If you want to use any other user account than the one that is used to connect *this* application to Neo4j, we make use of the Neo4j impersonation feature. Several things are to be taken into consideration then:
 
-but there is no loom yet
+* You need the enterprise edition for this to work
+* You need to install the `neo4j-impersonated-auth` plugin for this to work as currently impersonation does not allow authentication without any additional means
 
-Couple of options:
+=== Readers or writers?
 
-* Create async controllers (just returning some variant of deferrable result)
-** Use blocking api, wrap in completable futures, just use springs executors, will always thread swtich to netty
-** Use async api, return completable futures, accept independence from driver io & spring
-** Use async api, configure executors, will be really painful to call, but shared config
+This PoC does best effort estimation on queries if they can be routed to readers or require writers to be executed. When in doubt, we will route things to a writer. It uses `EXPLAIN` per query to do this. This will happen only once per query, but is necessary so that the PoC works also without properly configured server side routing (SSR).
 
-**Decision**
+=== Managed or implicit transactions?
 
-We went with the reactive variant… all async approaches are not ideal workarounds.
+By default, the PoC will make use of managed transaction (aka transactional functions aka retry-functions), so that all queries should be eventually succeed according to Neo4js definition of retryable. In cases we figure that a query uses `USING PERIODIC COMMIT LOAD CSV …`  or `CALL {…} IN TRANSACTION` we fallback to implicit (aka server managed transactions) and no retries will be attempt
 
-=== Running
+== Compiling and running
 
-==== With Aura env file
+You need Java 17 to create an executable Jar file and additional, Docker to run all tests and create a docker image.
+
+=== Just create packages
+
+[source,bash]
+----
+./mvnw -Dfast clean package
+----
+
+=== Execute all tests and create a package
+
+[source,bash]
+----
+./mvnw clean verify
+----
+
+=== Execute all tests and create a docker image
+
+[source,bash]
+----
+./mvnw clean spring-boot:build-image -Dspring-boot.build-image.imageName=neo4j/neo4j-http
+----
+
+=== Running the Jar-File
+
+All https://docs.spring.io/spring-boot/docs/current/reference/html/application-properties.html#appendix.application-properties.data[Neo4j related data properties] - those are all that start with `spring.neo4j.*` - can be used to configure the Bolt connection. These can come from `application.properties`  or `application.yml` files. Basically, all features of https://docs.spring.io/spring-boot/docs/current/reference/html/features.html#features.external-config[externalized configuration] can be used.
+
+The following connects the application to a locally running instance, using the password `secret`. We are using locally exported environment variables here:
+
+[source,bash]
+----
+SPRING_NEO4J_URI=neo4j://localhost:7687 \
+SPRING_NEO4J_AUTHENTICATION_USERNAME=neo4j \
+SPRING_NEO4J_AUTHENTICATION_PASSWORD=secret \
+java -jar neo4j-http/target/neo4j-http-0.0.1-SNAPSHOT-runnable.jar
+----
+
+You can also use a credentials file downloaded from Aura likes this:
 
 [source,console]
 ----
 set -o allexport # <.>
-(source ~/Downloads/credentials-xxx.env;  java -jar neo4j-http/target/neo4j-http-0.0.1-SNAPSHOT-runnable.jar)
+(source ~/Downloads/credentials-XXX.env;  java -jar neo4j-http/target/neo4j-http-0.0.1-SNAPSHOT-runnable.jar)
 set +o allexport
 ----
 <.> Might not be needed in your shell
 
-=== Streaming
+=== Running the docker image
 
-requests must use the appropriate accept type
+[source,bash]
+----
+docker run \
+-e 'SPRING_NEO4J_URI=neo4j://yourhost:7687' \
+-e 'SPRING_NEO4J_AUTHENTICATION_USERNAME=neo4j' \
+-e 'SPRING_NEO4J_AUTHENTICATION_PASSWORD=secret' \
+-p 8080:8080 \
+neo4j/neo4j-http:latest
+----
 
-```
- echo "MATCH (n)  RETURN n" | http -a neo4j:secret localhost:8080/b  Accept:'application/x-ndjson' --stream
-```
+== Available endpoints
 
-=== Supported complex types
+=== Running queries
+
+==== Parameter types
 
 Aligning with https://neo4j.com/docs/java-manual/current/cypher-workflow/#java-driver-type-mapping[Neo4j Java Driver types],
 we support types that cannot and should not automatically get derived from a `String` by Jackson.
-To use define those types in a request, the format `{"$type": "TypeName", "_value":"TypeValue"}` was chosen.
+To use define those types in a request define the parameter in the list of parameters as follows:
+
+[source,json]
+----
+{
+  "statement": "RETURN $aDateValue as dateInput, $aStringValue as stringInput",
+  "parameters": {
+    "aDateValue": {
+      "$type": "Date",
+      "_value": "2022-10-31"
+    },
+    "aStringValue": "somthing"
+  }
+}
+----
 
 |===
 |Type name        | example value
@@ -95,3 +149,178 @@ To use define those types in a request, the format `{"$type": "TypeName", "_valu
 | `Point`         | "SRID=4979;POINT(12.994823 55.612191 2)"
 | `Byte[]`        | "00 01 02 03 04 05 06 07" (whitespaces are optional)
 |===
+
+All other parameters can be specified by default JSON types, such as literal `null`, Strings, boolean and numbers.
+
+==== Running one or more queries and get one or more result
+
+This endpoint behaves just like the current Neo4j-HTTP and also supports its current parameters and options. As a matter of fact, the Neo4j-OGM-HTTP driver tests successfully against it. For the basic format used, see https://neo4j.com/docs/http-api/current/actions/[Cypher transaction API].
+
+NOTE: This PoC only allows "Beginning and committing a transaction in one request" as defined https://neo4j.com/docs/http-api/current/actions/begin-and-commit-a-transaction-in-one-request/[here] to keep the API stateles.
+
+An example call taken straight from the above documentation looks like this:
+
+[source,bash]
+----
+curl -X POST --location "http://localhost:8080/db/neo4j/tx/commit" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json" \
+    -d "{
+          \"statements\": [
+            {
+              \"statement\": \"CREATE (n:Hello {name: 'World', createdAt: datetime()}) RETURN n\",
+              \"includeStats\": true,
+              \"resultDataContents\": [\"row\", \"graph\"]
+            }
+          ]
+        }" \
+    --basic --user neo4j:secret
+----
+
+The result will look like this
+
+[source,json]
+----
+{
+  "results": [
+    {
+      "columns": [
+        "n"
+      ],
+      "data": [
+        {
+          "row": [
+            {
+              "name": "World",
+              "createdAt": "2022-10-26T07:16:54.078Z"
+            }
+          ],
+          "meta": [
+            {
+              "id": 7,
+              "type": "node"
+            }
+          ],
+          "graph": {
+            "relationships": [],
+            "nodes": [
+              {
+                "id": 7,
+                "properties": {
+                  "name": "World",
+                  "createdAt": "2022-10-26T07:16:54.078Z"
+                },
+                "labels": [
+                  "Hello"
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "stats": {
+        "contains_updates": true,
+        "nodes_created": 1,
+        "nodes_deleted": 0,
+        "properties_set": 2,
+        "relationships_created": 0,
+        "relationship_deleted": 0,
+        "labels_added": 1,
+        "labels_removed": 0,
+        "indexes_added": 0,
+        "indexes_removed": 0,
+        "constraints_added": 0,
+        "constraints_removed": 0,
+        "contains_system_updates": false,
+        "system_updates": 0
+      }
+    }
+  ],
+  "notifications": [],
+  "errors": []
+}
+----
+
+==== Streaming the results of one query
+
+This endpoint is different to the existing API. It allows only one query to be executed and does not allow to specify the format. In addition, it will render complex data types as shown in <<Parameter types>> while streaming each record returned:
+
+[source,bash]
+----
+curl -X POST --location "http://localhost:8080/db/neo4j/tx/commit" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/x-ndjson" \
+    -d "{
+          \"statement\": \"WITH range(1,10) AS r UNWIND r as i CREATE (n:Hello {name: 'World ' + i, createdAt: datetime()}) RETURN n\"
+        }" \
+    --basic --user neo4j:secret
+----
+
+IMPORTANT: Note the accepted content type, it is `application/x-ndjson` and that the query is not wrapped in a list of statements.
+
+The result are 10 chunks of json looking like this:
+
+[source,json]
+----
+{
+  "n": {
+    "name": "World 1",
+    "createdAt": {
+      "$type": "DateTime",
+      "_value": "2022-10-26T07:20:21.239Z"
+    }
+  }
+}
+----
+
+=== Getting metrics
+
+Metrics are available via Spring Boot actuator at this endpoint:
+
+[source,bash]
+----
+curl -X GET --location "http://localhost:8080/actuator/metrics/" \
+    --basic --user neo4j:secret
+----
+
+Relevant driver metrics start with `neo4j.driver.*`, the connection usage for example can be retrieved like this:
+
+[source,bash]
+----
+curl -X GET --location "http://localhost:8080/actuator/metrics/neo4j.driver.connections.usage" \
+    --basic --user neo4j:secret
+----
+
+And has this format:
+
+[source,json]
+----
+{
+  "name": "neo4j.driver.connections.usage",
+  "baseUnit": "seconds",
+  "measurements": [
+    {
+      "statistic": "COUNT",
+      "value": 10.0
+    },
+    {
+      "statistic": "TOTAL_TIME",
+      "value": 0.296342917
+    },
+    {
+      "statistic": "MAX",
+      "value": 0.0
+    }
+  ],
+  "availableTags": [
+    {
+      "tag": "address",
+      "values": [
+        "localhost:7687"
+      ]
+    }
+  ]
+}
+----
+
+All metrics can be exported as described in the official https://docs.spring.io/spring-boot/docs/current/reference/html/actuator.html#actuator.metrics[Spring Boot Manual] towards a plethora of different tools.

@@ -30,10 +30,6 @@
 	<name>Neo4j-HTTP</name>
 	<description>PoC for an external HTTP API using Bolt.</description>
 
-	<properties>
-		<spring-boot.version>2.7.4</spring-boot.version>
-	</properties>
-
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
@@ -128,6 +124,7 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<version>${spring-boot.version}</version>
 				<configuration>
+					<skip>false</skip>
 					<mainClass>org.neo4j.http.Application</mainClass>
 				</configuration>
 				<executions>

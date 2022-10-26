@@ -15,6 +15,9 @@
  */
 package org.neo4j.http.config;
 
+import org.neo4j.driver.BookmarkManager;
+import org.neo4j.driver.BookmarkManagerConfig;
+import org.neo4j.driver.BookmarkManagers;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.MetricsAdapter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +44,11 @@ public class DriverConfig {
 			.withMetricsAdapter(MetricsAdapter.MICROMETER)
 			.withDriverMetrics()
 			.withUserAgent("neo4j-http-proxy");
+	}
+
+	@Bean
+	BookmarkManager bookmarkManager() {
+		return BookmarkManagers.defaultManager(BookmarkManagerConfig.builder().build());
 	}
 
 	@Bean

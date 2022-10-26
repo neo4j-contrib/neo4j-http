@@ -34,6 +34,9 @@ public final class ResultContainer {
 	final List<Notification> notifications;
 	final List<Neo4jException> errors;
 
+	/**
+	 * An empty result container.
+	 */
 	public ResultContainer() {
 		this.results = new ArrayList<>();
 		this.notifications = new ArrayList<>();

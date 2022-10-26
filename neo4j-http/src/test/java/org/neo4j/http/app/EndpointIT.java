@@ -79,11 +79,15 @@ class EndpointIT {
 		var headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		headers.setAccept(List.of(MediaType.APPLICATION_NDJSON));
-		var requestEntity = new HttpEntity<>("MATCH n RETURN n", headers);
+		var requestEntity = new HttpEntity<>(
+			"""
+			{
+			    "statement": "MATCH n RETURN n"
+			}""", headers);
 
 		var exchange = this.restTemplate
 			.withBasicAuth("neo4j", neo4j.getAdminPassword())
-			.exchange("/b", HttpMethod.POST, requestEntity, new ParameterizedTypeReference<Map<String, String>>() {
+			.exchange("/db/neo4j8/tx/commit", HttpMethod.POST, requestEntity, new ParameterizedTypeReference<Map<String, String>>() {
 			});
 		assertThat(exchange.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 		assertThat(exchange.getBody())

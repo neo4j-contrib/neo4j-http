@@ -31,6 +31,7 @@ import java.util.function.Function;
 
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
+import org.neo4j.driver.Values;
 import org.neo4j.driver.exceptions.Neo4jException;
 import org.neo4j.driver.exceptions.value.LossyCoercion;
 import org.neo4j.driver.summary.InputPosition;
@@ -190,7 +191,9 @@ final class DefaultResponseModule extends SimpleModule {
 				recordSerializer.serialize(value.records(), gen, provider);
 			}
 			if (value.graph() != null) {
-				gen.writeObjectField("graph", value.graph());
+				var recordSerializer = provider.findValueSerializer(Value.class);
+				gen.writeFieldName("graph");
+				recordSerializer.serialize(Values.value(value.graph()), gen, provider);
 			}
 
 			if (value.rest() != null && !value.rest().isEmpty()) {
@@ -322,6 +325,13 @@ final class DefaultResponseModule extends SimpleModule {
 					serialize(element, json, serializers);
 				}
 				json.writeEndArray();
+			} else if (value.hasType(typeSystem.MAP()) && !(value.hasType(typeSystem.NODE()) || value.hasType(typeSystem.RELATIONSHIP()))) {
+				json.writeStartObject();
+				for (String key : value.keys()) {
+					json.writeFieldName(key);
+					serialize(value.get(key), json, serializers);
+				}
+				json.writeEndObject();
 			} else if (hasSimpleType(value)) {
 				renderSimpleValue(value, json);
 			} else if (serializers.getActiveView() == Views.NEO4J_44_DEFAULT.class) {

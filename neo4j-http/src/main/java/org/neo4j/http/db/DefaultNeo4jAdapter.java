@@ -21,7 +21,9 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import org.neo4j.driver.AccessMode;
+import org.neo4j.driver.BookmarkManager;
 import org.neo4j.driver.Driver;
+import org.neo4j.driver.Query;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.SessionConfig;
 import org.neo4j.driver.exceptions.Neo4jException;
@@ -50,10 +52,13 @@ class DefaultNeo4jAdapter implements Neo4jAdapter {
 
 	private final Driver driver;
 
-	DefaultNeo4jAdapter(ApplicationProperties applicationProperties, QueryEvaluator queryEvaluator, Driver driver) {
+	private final BookmarkManager bookmarkManager;
+
+	DefaultNeo4jAdapter(ApplicationProperties applicationProperties, QueryEvaluator queryEvaluator, Driver driver, BookmarkManager bookmarkManager) {
 		this.applicationProperties = applicationProperties;
 		this.queryEvaluator = queryEvaluator;
 		this.driver = driver;
+		this.bookmarkManager = bookmarkManager;
 	}
 
 	String normalizeQuery(String query) {
@@ -62,10 +67,9 @@ class DefaultNeo4jAdapter implements Neo4jAdapter {
 
 	@Override
 	@SuppressWarnings({"deprecation", "RedundantSuppression"})
-	public Flux<Record> stream(Neo4jPrincipal principal, String database, String query) {
+	public Flux<Record> stream(Neo4jPrincipal principal, String database, Query query) {
 
-		var theQuery = normalizeQuery(query);
-		return queryEvaluator.getExecutionRequirements(principal, theQuery)
+		return queryEvaluator.getExecutionRequirements(principal, query.text())
 			.flatMapMany(requirements -> this.execute0(principal, database, requirements, q -> Flux.from(q.run(query).records())));
 	}
 
@@ -109,6 +113,7 @@ class DefaultNeo4jAdapter implements Neo4jAdapter {
 			flatMap(v -> {
 				var builder = v ? SessionConfig.builder().withImpersonatedUser(principal.username()) : SessionConfig.builder();
 				var sessionConfig = builder
+					.withBookmarkManager(bookmarkManager)
 					.withDefaultAccessMode(requirements.target() == QueryEvaluator.Target.WRITERS ? AccessMode.WRITE : AccessMode.READ)
 					.build();
 				return Mono.fromCallable(() -> driver.rxSession(sessionConfig));

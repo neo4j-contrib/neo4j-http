@@ -15,6 +15,7 @@
  */
 package org.neo4j.http.db;
 
+import org.neo4j.driver.Query;
 import org.neo4j.driver.Record;
 
 import reactor.core.publisher.Flux;
@@ -37,7 +38,7 @@ public interface Neo4jAdapter {
 	 * @param query The query to execute
 	 * @return A stream of records
 	 */
-	Flux<Record> stream(Neo4jPrincipal principal, String database, String query);
+	Flux<Record> stream(Neo4jPrincipal principal, String database, Query query);
 
 	/**
 	 * Executes one or more queries and eagerly collects toe results into a {@link ResultContainer}.
