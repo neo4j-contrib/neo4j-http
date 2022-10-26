@@ -16,9 +16,7 @@
 package org.neo4j.http.db;
 
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 import org.neo4j.driver.AccessMode;
 import org.neo4j.driver.BookmarkManager;
@@ -59,10 +57,6 @@ class DefaultNeo4jAdapter implements Neo4jAdapter {
 		this.queryEvaluator = queryEvaluator;
 		this.driver = driver;
 		this.bookmarkManager = bookmarkManager;
-	}
-
-	String normalizeQuery(String query) {
-		return Optional.ofNullable(query).map(String::trim).filter(Predicate.not(String::isBlank)).orElseThrow();
 	}
 
 	@Override
@@ -113,6 +107,7 @@ class DefaultNeo4jAdapter implements Neo4jAdapter {
 				var builder = v ? SessionConfig.builder().withImpersonatedUser(principal.username()) : SessionConfig.builder();
 				var sessionConfig = builder
 					.withBookmarkManager(bookmarkManager)
+					.withDatabase(database)
 					.withDefaultAccessMode(requirements.target() == QueryEvaluator.Target.WRITERS ? AccessMode.WRITE : AccessMode.READ)
 					.build();
 				return Mono.fromCallable(() -> driver.rxSession(sessionConfig));
