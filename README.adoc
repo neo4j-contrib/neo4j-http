@@ -21,13 +21,12 @@ Neo4j-HTTP provides an HTTP API for Neo4j that runs externally to the core produ
 Those are the topics evaluated
 
 - Create authenticator based on driver (when same password in basic auth as driver users, use that driver, otherwise create new instance and try to get a connection) ✅
-- Per driver instance bookmark management
 - Guestimator ✅
 - Use Jackson proper for formats ✅
 - Provide an option to run this as a Neo4j plugin similar to GDS Arrows (https://github.com/neo-technology/graph-analytics/blob/master/private/arrow/src/main/java/com/neo4j/gds/arrow/server/GdsFlightServerExtension.java)
 - Bookmark manager (used the driver itself) ✅
 - Do as little as possible type conversion everywhere. Use Jackson as imperative as possible and avoid a lot of reflection ✅
-
+* Authentication is swappable ✅
 
 == Architecture
 
@@ -43,6 +42,8 @@ If you want to use any other user account than the one that is used to connect *
 
 * You need the enterprise edition for this to work
 * You need to install the `neo4j-impersonated-auth` plugin for this to work as currently impersonation does not allow authentication without any additional means
+
+NOTE: Right now Neo4j is the authority for authentication, but this is completely swappable, for example for an Octa instance or similar.
 
 === Readers or writers?
 
