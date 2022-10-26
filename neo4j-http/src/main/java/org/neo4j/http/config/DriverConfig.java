@@ -15,6 +15,8 @@
  */
 package org.neo4j.http.config;
 
+import java.util.logging.Logger;
+
 import org.neo4j.driver.BookmarkManager;
 import org.neo4j.driver.BookmarkManagerConfig;
 import org.neo4j.driver.BookmarkManagers;
@@ -34,6 +36,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 public class DriverConfig {
 
+	Logger LOGGER = Logger.getLogger(DriverConfig.class.getName());
+
 	/**
 	 * @return changes to the driver
 	 */
@@ -52,12 +56,20 @@ public class DriverConfig {
 	}
 
 	@Bean
-	ApplicationRunner applicationRunner(@Autowired Neo4jProperties properties, @Autowired Driver driver) {
+	ApplicationRunner applicationRunner(
+		@Autowired ApplicationProperties applicationProperties,
+		@Autowired Neo4jProperties neo4jProperties,
+		@Autowired Driver driver
+	) {
 		return args -> {
+			if (!applicationProperties.verifyConnectivity()) {
+				LOGGER.info("Not verifying connectivity on startup");
+				return;
+			}
 			try {
 				driver.verifyConnectivity();
 			} catch (Exception e) {
-				throw new RuntimeException("Could not verify connection towards " + properties.getUri() + ": " + e.getLocalizedMessage());
+				throw new RuntimeException("Could not verify connection towards " + neo4jProperties.getUri() + ": " + e.getLocalizedMessage());
 			}
 		};
 	}

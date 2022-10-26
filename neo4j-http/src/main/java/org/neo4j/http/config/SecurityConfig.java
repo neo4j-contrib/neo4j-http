@@ -15,6 +15,8 @@
  */
 package org.neo4j.http.config;
 
+import org.springframework.boot.actuate.autoconfigure.security.reactive.EndpointRequest;
+import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
@@ -37,6 +39,7 @@ public class SecurityConfig {
 
 		return http
 			.authorizeExchange(exchanges -> exchanges
+				.matchers(EndpointRequest.to(HealthEndpoint.class)).permitAll()
 				.anyExchange().authenticated()
 			)
 			.httpBasic().and()

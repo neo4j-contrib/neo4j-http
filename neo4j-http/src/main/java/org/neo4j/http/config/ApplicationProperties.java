@@ -22,15 +22,18 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * @author Michael J. Simons
  * @param fetchSize The fetch size is important to create proper throughput
+ * @param verifyConnectivity Set to {@literal true} to enable verification of the connection during startup
  * @soundtrack Queen - The Miracle
  */
 @ConfigurationProperties("org.neo4j.http")
 public record ApplicationProperties(
-	Integer fetchSize
+	Integer fetchSize,
+	boolean verifyConnectivity
 ) {
 
 	/**
 	 * @param fetchSize defaults to 2000 if not set
+	 * @param verifyConnectivity Set to {@literal true} to enable verification of the connection during startup
 	 */
 	public ApplicationProperties {
 		fetchSize = Optional.ofNullable(fetchSize).orElse(2000);
