@@ -102,7 +102,69 @@ set +o allexport
 ----
 <.> Might not be needed in your shell
 
-=== Running the docker image
+=== Ensuring connectivity
+
+By default, no checks are done during startup whether Neo4j is reachable. You can set `org.neo4j.http.verify-connectivity=true` via any of the available means and the application will try to reach Neo4j during startup and fail hard if it won't reach any.
+
+Usually this is not necessary, as the driver is able to heal when Neo4j becomes available. To monitory the status, you can use either of the following endpoints:
+
+.Checking the application health
+[source,bash]
+----
+curl -X GET --location "http://localhost:8080/actuator/health/" \
+    --basic --user neo4j:secret
+----
+
+It will return the full status, similar to this when authenticated, status only without authentication:
+
+[source,json]
+----
+{
+  "status": "UP",
+  "components": {
+    "diskSpace": {
+      "status": "UP",
+      "details": {
+        "total": 994662584320,
+        "free": 744871899136,
+        "threshold": 10485760,
+        "exists": true
+      }
+    },
+    "livenessState": {
+      "status": "UP"
+    },
+    "neo4j": {
+      "status": "UP",
+      "details": {
+        "server": "4.4.11@localhost:7687",
+        "edition": "community",
+        "database": "neo4j"
+      }
+    },
+    "ping": {
+      "status": "UP"
+    },
+    "readinessState": {
+      "status": "UP"
+    }
+  },
+  "groups": [
+    "liveness",
+    "readiness"
+  ]
+}
+----
+
+There are reduced endpoints for liveness and readiness:
+
+.Checking for readiness only
+[source,bash]
+----
+curl -X GET --location "http://localhost:8080/actuator/health/readiness"
+----
+
+=== Running the Docker image
 
 [source,bash]
 ----
@@ -112,6 +174,28 @@ docker run \
 -e 'SPRING_NEO4J_AUTHENTICATION_PASSWORD=secret' \
 -p 8080:8080 \
 neo4j/neo4j-http:latest
+----
+
+=== Running the Docker image in Kubernetes or similar
+
+You might want to configure appropriate probes for your setup somewhat similar to this
+
+.Configuring K8s to use the built-in probes
+[source,yaml]
+----
+livenessProbe:
+  httpGet:
+    path: "/actuator/health/liveness"
+    port: <actuator-port>
+  failureThreshold: ...
+  periodSeconds: ...
+
+readinessProbe:
+  httpGet:
+    path: "/actuator/health/readiness"
+    port: <actuator-port>
+  failureThreshold: ...
+  periodSeconds: ...
 ----
 
 == Available endpoints
