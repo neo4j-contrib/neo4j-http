@@ -26,7 +26,8 @@ import org.neo4j.driver.Driver;
 import org.neo4j.driver.Query;
 import org.neo4j.driver.SessionConfig;
 import org.neo4j.driver.exceptions.ClientException;
-import org.neo4j.driver.reactive.RxSession;
+import org.neo4j.driver.reactivestreams.ReactiveResult;
+import org.neo4j.driver.reactivestreams.ReactiveSession;
 import org.neo4j.http.db.Neo4jPrincipal;
 import org.springframework.boot.autoconfigure.neo4j.Neo4jProperties;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -107,11 +108,11 @@ final class DefaultAuthenticationProvider implements Neo4jAuthenticationProvider
 		);
 
 		return Mono.usingWhen(
-			Mono.fromCallable(() -> boltConnection.rxSession(DEFAULT_SESSION_CONFIG)),
-			session -> Flux.from(session.run(query).records())
+			Mono.fromCallable(() -> boltConnection.session(ReactiveSession.class, DEFAULT_SESSION_CONFIG)),
+			session -> Flux.from(session.run(query)).flatMapSequential(ReactiveResult::records)
 				.map(record -> record.get(0).asBoolean())
 				.single(),
-			RxSession::close
+			ReactiveSession::close
 		).onErrorResume(ClientException.class, e -> {
 			if (!"Neo.ClientError.Statement.SyntaxError".equals(e.code())) {
 				LOGGER.log(Level.SEVERE, "Error checking authentication prior to impersonation", e);
