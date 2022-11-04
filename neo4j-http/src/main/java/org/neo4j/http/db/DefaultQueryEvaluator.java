@@ -43,7 +43,7 @@ import org.neo4j.driver.AccessMode;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.SessionConfig;
 import org.neo4j.driver.exceptions.ClientException;
-import org.neo4j.driver.reactive.RxSession;
+import org.neo4j.driver.reactivestreams.ReactiveSession;
 import org.neo4j.driver.summary.Plan;
 import org.neo4j.driver.summary.ResultSummary;
 import org.springframework.cache.annotation.Cacheable;
@@ -72,9 +72,9 @@ class DefaultQueryEvaluator implements QueryEvaluator {
 	DefaultQueryEvaluator(Driver driver) {
 		this.driver = driver;
 		this.enterpriseEdition = Mono.usingWhen(
-			Mono.fromCallable(driver::rxSession),
-			rxSession -> Mono.fromDirect(rxSession.run("CALL dbms.components() YIELD edition RETURN toLower(edition) = 'enterprise'").records()).map(record -> record.get(0).asBoolean()),
-			RxSession::close
+			Mono.fromCallable(() -> driver.session(ReactiveSession.class)),
+			rxSession -> Mono.fromDirect(rxSession.run("CALL dbms.components() YIELD edition RETURN toLower(edition) = 'enterprise'")).flatMap(rs -> Mono.fromDirect(rs.records())).map(record -> record.get(0).asBoolean()),
+			ReactiveSession::close
 		).cache();
 	}
 
@@ -109,13 +109,13 @@ class DefaultQueryEvaluator implements QueryEvaluator {
 				var sessionConfig = builder
 					.withDefaultAccessMode(AccessMode.READ)
 					.build();
-				return Mono.fromCallable(() -> driver.rxSession(sessionConfig));
+				return Mono.fromCallable(() -> driver.session(ReactiveSession.class, sessionConfig));
 			});
 
 		// Invalid queries will end up here for the first time.
 		// We don't want to add the additional EXPLAIN to the stack and pointers to the wrong parts don't make much sense
 		// In a compressed JSON format either, so we just remove all that stuff with the onErrorMap as last operator
-		return Mono.usingWhen(sessionSupplier, session -> Mono.fromDirect(session.run("EXPLAIN " + query).consume()), RxSession::close)
+		return Mono.usingWhen(sessionSupplier, session -> Mono.fromDirect(session.run("EXPLAIN " + query)).flatMap(rs -> Mono.fromDirect(rs.consume())), ReactiveSession::close)
 			.map(summary -> getOperators(summary).stream().anyMatch(CypherOperator::isUpdating) ? Target.WRITERS : Target.READERS)
 			.onErrorMap(DefaultQueryEvaluator::isSyntaxError, e -> new InvalidQueryException(query, (ClientException) e));
 	}
