@@ -16,15 +16,24 @@
 package org.neo4j.http.db;
 
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 import reactor.core.publisher.Mono;
+
+import org.neo4j.cypher.internal.parser.javacc.Cypher;
+import org.neo4j.cypher.internal.parser.javacc.CypherCharStream;
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.reactivestreams.ReactiveSession;
 
 /**
  * A strategy for determining the execution requirements of a query.
  *
  * @author Michael J. Simons
  */
-interface QueryEvaluator {
+public interface QueryEvaluator {
+
+	Pattern CALL_PATTERN = Pattern.compile( "(?i)\\s*CALL\\s*\\{");
+	Pattern USING_PERIODIC_PATTERN = Pattern.compile("(?i)\\s*USING\\s+PERIODIC\\s+COMMIT\\s+");
 
 	/**
 	 * Shared logger for all instances / variants
@@ -79,4 +88,51 @@ interface QueryEvaluator {
 	 * @return The characteristics of the query
 	 */
 	Mono<ExecutionRequirements> getExecutionRequirements(Neo4jPrincipal principal, String query);
+
+	/**
+	 * Retrieves easy to determine query details such as call in tx / periodic commit.
+	 *
+	 * @param query The query to evaluate
+	 * @return The details of the query
+	 */
+	static QueryCharacteristics getCharacteristics(String query) {
+		ASTFactoryImpl astFactory = new ASTFactoryImpl();
+		try {
+			// We are using the side effects of the factory
+			@SuppressWarnings("unused")
+			var statement = new Cypher<>(astFactory,
+					ASTExceptionFactoryImpl.INSTANCE,
+					new CypherCharStream(query)).Statement();
+			return new QueryCharacteristics(astFactory.getHasSeenCallInTx(), astFactory.getHasSeenPeriodicCommit());
+		} catch (Exception e) {
+			return new QueryCharacteristics(false, false);
+		}
+	}
+
+	/**
+	 * Computes or retrieves the transaction mode required by the query.
+	 *
+	 * @param query The string value of a query to be executed, must not be {@literal null} or blank
+	 * @return The transaction mode required by the query
+	 */
+	static Mono<TransactionMode> getTransactionMode(String query) {
+
+		var result = TransactionMode.MANAGED;
+		if (CALL_PATTERN.matcher(query).find() || USING_PERIODIC_PATTERN.matcher(query).find()) {
+			var characteristics = QueryEvaluator.getCharacteristics(query);
+			result = characteristics.callInTx() || characteristics.periodicCommit() ? TransactionMode.IMPLICIT : TransactionMode.MANAGED;
+		}
+
+		return Mono.just(result);
+	}
+
+	static Mono<Boolean> isEnterprise(Driver driver) {
+		return Mono.usingWhen(
+				Mono.fromCallable(() -> driver.session(ReactiveSession.class)),
+				rxSession -> Mono.fromDirect(rxSession.run("CALL dbms.components() YIELD edition RETURN toLower(edition) = 'enterprise'"))
+						.flatMap(rs -> Mono.fromDirect(rs.records())).map(record -> record.get(0).asBoolean()),
+				ReactiveSession::close
+		).cache();
+	}
+
 }
