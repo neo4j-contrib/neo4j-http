@@ -96,7 +96,6 @@ final class DefaultAuthenticationProvider implements Neo4jAuthenticationProvider
 	 * @param principalAndPassword The principal and password to check
 	 * @return {@literal true} if the given {@link Authentication} can be safely used as impersonated user
 	 */
-	@SuppressWarnings("deprecation")
 	Mono<Boolean> canImpersonate(Authentication principalAndPassword) {
 
 		var query = new Query(

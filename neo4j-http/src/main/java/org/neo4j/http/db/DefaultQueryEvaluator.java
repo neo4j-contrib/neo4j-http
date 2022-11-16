@@ -61,14 +61,13 @@ import reactor.core.publisher.Mono;
 @Primary
 class DefaultQueryEvaluator implements QueryEvaluator {
 
-	private static final Pattern CALL_PATTERN = Pattern.compile("(?i)\\s*CALL\\s*\\{");
-	private static final Pattern USING_PERIODIC_PATTERN = Pattern.compile("(?i)\\s*USING\\s+PERIODIC\\s+COMMIT\\s+");
+	private static final Pattern CALL_PATTERN = Pattern.compile("(?ims)(?<!`)([^`\\s*]\\s*CALL\\s*\\{.*}\\s*IN\\s+TRANSACTIONS)(?!`)");
+	private static final Pattern USING_PERIODIC_PATTERN = Pattern.compile("(?ims)(?<!`)(\\s*USING\\s+PERIODIC\\s+COMMIT\\s+)(?!`)");
 
 	private final Driver driver;
 
 	private final Mono<Boolean> enterpriseEdition;
 
-	@SuppressWarnings("deprecation")
 	DefaultQueryEvaluator(Driver driver) {
 		this.driver = driver;
 		this.enterpriseEdition = Mono.usingWhen(
@@ -93,14 +92,12 @@ class DefaultQueryEvaluator implements QueryEvaluator {
 	/**
 	 * Computes or retrieves the target against a query should be executed.
 	 * <p>
-	 * Deprecations are suppressed as we are using the reactivestreams based reactive session.
 	 *
 	 * @param principal The authenticated principal for whom the query is evaluated
 	 * @param query     The string value of a query to be executed, must not be {@literal null} or blank
 	 * @return A target for the query
 	 * @throws IllegalArgumentException if the query can not be dealt with
 	 */
-	@SuppressWarnings("deprecation")
 	private Mono<Target> getQueryTarget(Neo4jPrincipal principal, String query) {
 
 		var sessionSupplier = isEnterpriseEdition()
