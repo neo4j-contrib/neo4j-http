@@ -61,8 +61,8 @@ import reactor.core.publisher.Mono;
 @Primary
 class DefaultQueryEvaluator implements QueryEvaluator {
 
-	private static final Pattern CALL_PATTERN = Pattern.compile("(?ims)(?<!`)([^`\\s*]\\s*CALL\\s*\\{.*}\\s*IN\\s+TRANSACTIONS)(?!`)");
-	private static final Pattern USING_PERIODIC_PATTERN = Pattern.compile("(?ims)(?<!`)(\\s*USING\\s+PERIODIC\\s+COMMIT\\s+)(?!`)");
+	private static final Pattern CALL_PATTERN = Pattern.compile("(?ims)(?<!`)([^`\\s*]\\s*+CALL\\s*\\{.*}\\s*IN\\s+TRANSACTIONS)(?!`)");
+	private static final Pattern USING_PERIODIC_PATTERN = Pattern.compile("(?ims)(?<!`)(([^`\\s*]|^)\\s*+USING\\s+PERIODIC\\s+COMMIT\\s+)(?!`)");
 
 	private final Driver driver;
 
