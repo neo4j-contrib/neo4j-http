@@ -40,7 +40,7 @@ import reactor.core.publisher.Mono;
  * @author Michael J. Simons
  */
 @Service
-@Profile( "!ssr" )
+@Profile("!ssr")
 public class DefaultQueryEvaluator implements QueryEvaluator {
 
 	private final Driver driver;
@@ -48,9 +48,9 @@ public class DefaultQueryEvaluator implements QueryEvaluator {
 	private final Mono<Boolean> enterpriseEdition;
 
 	@SuppressWarnings("deprecation")
-	public DefaultQueryEvaluator( Driver driver ) {
+	public DefaultQueryEvaluator(Driver driver) {
 		this.driver = driver;
-		this.enterpriseEdition = QueryEvaluator.isEnterprise( driver );
+		this.enterpriseEdition = QueryEvaluator.isEnterprise(driver);
 	}
 
 	@Override
@@ -79,20 +79,20 @@ public class DefaultQueryEvaluator implements QueryEvaluator {
 	private Mono<Target> getQueryTarget(Neo4jPrincipal principal, String query) {
 
 		var sessionSupplier = isEnterpriseEdition()
-			.flatMap(v -> {
-				var builder = v ? SessionConfig.builder().withImpersonatedUser(principal.username()) : SessionConfig.builder();
-				var sessionConfig = builder
-					.withDefaultAccessMode(AccessMode.READ)
-					.build();
-				return Mono.fromCallable(() -> driver.session(ReactiveSession.class, sessionConfig));
-			});
+				.flatMap(v -> {
+					var builder = v ? SessionConfig.builder().withImpersonatedUser(principal.username()) : SessionConfig.builder();
+					var sessionConfig = builder
+							.withDefaultAccessMode(AccessMode.READ)
+							.build();
+					return Mono.fromCallable(() -> driver.session(ReactiveSession.class, sessionConfig));
+				});
 
 		// Invalid queries will end up here for the first time.
 		// We don't want to add the additional EXPLAIN to the stack and pointers to the wrong parts don't make much sense
 		// In a compressed JSON format either, so we just remove all that stuff with the onErrorMap as last operator
 		return Mono.usingWhen(sessionSupplier, session -> Mono.fromDirect(session.run("EXPLAIN " + query)).flatMap(rs -> Mono.fromDirect(rs.consume())), ReactiveSession::close)
-			.map(summary -> getOperators(summary).stream().anyMatch(CypherOperator::isUpdating) ? Target.WRITERS : Target.READERS)
-			.onErrorMap(DefaultQueryEvaluator::isSyntaxError, e -> new InvalidQueryException(query, (ClientException) e));
+				.map(summary -> getOperators(summary).stream().anyMatch(CypherOperator::isUpdating) ? Target.WRITERS : Target.READERS)
+				.onErrorMap(DefaultQueryEvaluator::isSyntaxError, e -> new InvalidQueryException(query, (ClientException) e));
 	}
 
 	private static boolean isSyntaxError(Throwable e) {

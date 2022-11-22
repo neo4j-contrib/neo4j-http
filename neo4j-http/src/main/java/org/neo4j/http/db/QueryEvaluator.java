@@ -32,7 +32,7 @@ import org.neo4j.driver.reactivestreams.ReactiveSession;
  */
 public interface QueryEvaluator {
 
-	Pattern CALL_PATTERN = Pattern.compile( "(?i)\\s*CALL\\s*\\{");
+	Pattern CALL_PATTERN = Pattern.compile("(?i)\\s*CALL\\s*\\{");
 	Pattern USING_PERIODIC_PATTERN = Pattern.compile("(?i)\\s*USING\\s+PERIODIC\\s+COMMIT\\s+");
 
 	/**
