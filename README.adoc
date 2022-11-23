@@ -47,7 +47,23 @@ NOTE: Right now Neo4j is the authority for authentication, but this is completel
 
 === Readers or writers?
 
-This PoC does best effort estimation on queries if they can be routed to readers or require writers to be executed. When in doubt, we will route things to a writer. It uses `EXPLAIN` per query to do this. This will happen only once per query, but is necessary so that the PoC works also without properly configured server side routing (SSR).
+==== When using Neo4j 5 or instances with `dbms.routing.enabled`
+
+During startup the application checks if it is connected against an instance with Server Side Routing (aka SSR). If this is the case Server Side Routing will be used. This requires the connection to be made via a `neo4j://` URI.
+
+==== Client side query evaluation
+
+When connected via `bolt://`  or against instances that don't support SSR, a best effort estimation on queries will be done whether they can be routed to readers or require writers to be executed. When in doubt, we will route things to a writer. The application uses an `EXPLAIN` call to do this. This will happen only once per query.
+
+==== Enforcing SSR routing
+
+WARNING: You can't enforce SSR over a `bolt://` connection.
+
+All checks can be skipped by running this application with the `ssr` profile on. This can be specified as a JVM paramter with `-Dspring.profiles.active=ssr` or as an environment variable `export spring_profiles_active=ssr`.
+
+==== Specifying the default value for SSR in case of no connectivity on startup
+
+Use `org.neo4j.http.default-to-ssr=true` either as property or environment variable to default to SSR in case the connection to an instance can't be made during startup of this application.
 
 === Managed or implicit transactions?
 

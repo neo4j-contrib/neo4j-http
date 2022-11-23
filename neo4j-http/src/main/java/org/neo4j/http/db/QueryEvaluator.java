@@ -15,7 +15,10 @@
  */
 package org.neo4j.http.db;
 
+import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.neo4j.driver.Driver;
 
 import reactor.core.publisher.Mono;
 
@@ -24,12 +27,28 @@ import reactor.core.publisher.Mono;
  *
  * @author Michael J. Simons
  */
-interface QueryEvaluator {
+public interface QueryEvaluator {
 
 	/**
 	 * Shared logger for all instances / variants
 	 */
 	Logger LOGGER = Logger.getLogger(QueryEvaluator.class.getName());
+
+	/**
+	 * Creates a new {@link QueryEvaluator} using the capabilities of the given connection.
+	 * @param driver connected to an instance that has a given set of {@link Capabilities}.
+	 * @param capabilities capabilities of the instance against the driver is connected to
+	 * @return a {@link QueryEvaluator}
+	 */
+	static QueryEvaluator create(Driver driver, Capabilities capabilities) {
+
+		if (capabilities.ssrAvailable()) {
+			LOGGER.log(Level.INFO, "Using SSR");
+			return new DefaultQueryEvaluator(driver);
+		}
+		LOGGER.log(Level.WARNING, "Using client side query evaluation, some queries might get routed wrong");
+		return new DefaultQueryEvaluator(driver);
+	}
 
 	/**
 	 * Basically a copy of the drivers access mode. As there is ongoing debate to rename this we stay independent.

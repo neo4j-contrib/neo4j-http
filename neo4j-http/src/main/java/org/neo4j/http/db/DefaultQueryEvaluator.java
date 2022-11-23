@@ -47,8 +47,6 @@ import org.neo4j.driver.reactivestreams.ReactiveSession;
 import org.neo4j.driver.summary.Plan;
 import org.neo4j.driver.summary.ResultSummary;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Service;
 
 import reactor.core.publisher.Mono;
 
@@ -57,8 +55,6 @@ import reactor.core.publisher.Mono;
  *
  * @author Michael J. Simons
  */
-@Service
-@Primary
 class DefaultQueryEvaluator implements QueryEvaluator {
 
 	private static final Pattern CALL_PATTERN = Pattern.compile("(?ims)(?<!`)([^`\\s*]\\s*+CALL\\s*\\{.*}\\s*IN\\s+TRANSACTIONS)(?!`)");
