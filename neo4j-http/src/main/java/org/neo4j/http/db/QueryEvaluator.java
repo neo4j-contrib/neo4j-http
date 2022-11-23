@@ -44,7 +44,7 @@ public interface QueryEvaluator {
 
 		if (capabilities.ssrAvailable()) {
 			LOGGER.log(Level.INFO, "Using SSR");
-			return new DefaultQueryEvaluator(driver);
+			return new SSREnabledQueryEvaluator(driver);
 		}
 		LOGGER.log(Level.WARNING, "Using client side query evaluation, some queries might get routed wrong");
 		return new DefaultQueryEvaluator(driver);
@@ -62,7 +62,11 @@ public interface QueryEvaluator {
 		/**
 		 * Requires to be routed to writers.
 		 */
-		WRITERS
+		WRITERS,
+		/**
+		 * Leave it to the server to decide
+		 */
+		AUTO
 	}
 
 	/**
@@ -88,6 +92,12 @@ public interface QueryEvaluator {
 	record ExecutionRequirements(Target target, TransactionMode transactionMode) {
 	}
 
+	/**
+	 * Retrieves information whether the target database is an enterprise edition or not. Non-enterprise edition scenarios
+	 * don't support impersonation.
+	 *
+	 * @return A publisher having a single boolean signal with a value of {@literal true} for indicating enterprise edition
+	 */
 	Mono<Boolean> isEnterpriseEdition();
 
 	/**

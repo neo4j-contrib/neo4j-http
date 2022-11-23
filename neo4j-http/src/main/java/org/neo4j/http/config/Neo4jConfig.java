@@ -114,6 +114,8 @@ public class Neo4jConfig {
 	 * enough to check on something via the driver. While there's certainly some way to make this work, a functional approach
 	 * like the one below is most likely more maintainable in the future than any hacking into Spring's internals or recreating
 	 * for example a Spring Data repository factor approach.
+	 * <p>
+	 * Please be aware of the comment in application.properties wrt caching.
 	 *
 	 * @return A query evaluator based on the given capabilities.
 	 */

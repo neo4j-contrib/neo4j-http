@@ -31,7 +31,6 @@ import org.neo4j.driver.reactivestreams.ReactiveSession;
 import org.neo4j.driver.summary.ResultSummary;
 import org.neo4j.http.config.ApplicationProperties;
 import org.reactivestreams.Publisher;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import reactor.core.publisher.Flux;
@@ -42,7 +41,6 @@ import reactor.util.function.Tuples;
  * @author Michael J. Simons
  */
 @Service
-@Primary
 class DefaultNeo4jAdapter implements Neo4jAdapter {
 
 	private final ApplicationProperties applicationProperties;
@@ -117,7 +115,7 @@ class DefaultNeo4jAdapter implements Neo4jAdapter {
 			flow = Flux.usingWhen(sessionSupplier, query, ReactiveSession::close);
 		} else {
 			flow = switch (requirements.target()) {
-				case WRITERS -> Flux.usingWhen(
+				case AUTO, WRITERS -> Flux.usingWhen(
 					sessionSupplier,
 					session -> session.executeWrite(query::apply),
 					ReactiveSession::close
