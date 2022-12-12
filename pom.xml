@@ -85,6 +85,8 @@
 		<asciidoctorj-diagram.version>2.2.3</asciidoctorj-diagram.version>
 		<asciidoctorj.version>2.5.5</asciidoctorj.version>
 		<checkstyle.version>10.3.3</checkstyle.version>
+		<error_prone_annotations.version>2.14.0</error_prone_annotations.version>
+		<grpc-server-spring-boot-starter.version>2.14.0.RELEASE</grpc-server-spring-boot-starter.version>
 		<java.version>17</java.version>
 		<license-maven-plugin.version>4.2.rc2</license-maven-plugin.version>
 		<maven-assembly-plugin.version>3.4.2</maven-assembly-plugin.version>
@@ -115,6 +117,8 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<protobuf-java.version>3.21.7</protobuf-java.version>
+		<protoc-gen-grpc-java.version>1.51.0</protoc-gen-grpc-java.version>
 		<sortpom-maven-plugin.version>3.2.0</sortpom-maven-plugin.version>
 		<spring-boot.version>2.7.6</spring-boot.version>
 		<testcontainers.version>1.17.5</testcontainers.version>
@@ -281,6 +285,7 @@
 						<exclude>**/*.txt</exclude>
 						<exclude>**/*.webm</exclude>
 						<exclude>**/*.yaml</exclude>
+						<exclude>**/*.proto</exclude>
 						<exclude>**/org.mockito.plugins.MockMaker</exclude>
 						<exclude>**/package-info.java</exclude>
 					</excludes>
