@@ -425,18 +425,3 @@ And has this format:
 ----
 
 All metrics can be exported as described in the official https://docs.spring.io/spring-boot/docs/current/reference/html/actuator.html#actuator.metrics[Spring Boot Manual] towards a plethora of different tools.
-
-=== Rudimentary gRPC support
-
-The streaming endpoint can be called with gRPC. With https://github.com/vadimi/grpc-client-cli[grpc-client-cli] this looks like this (Authentication is required):
-
-```bash
-echo '{"text": "MATCH (n:Movie) RETURN n.title"}' | \
-  grpc-client-cli \
-  --header "Authorization: Basic $(echo -n neo4j:secret | base64)" \
-  --service Neo4jService \
-  --method stream \
-  localhost:9090
-```
-
-WARNING: This works only for properties in a nice way ATM and the messages are not yet fully defined.
