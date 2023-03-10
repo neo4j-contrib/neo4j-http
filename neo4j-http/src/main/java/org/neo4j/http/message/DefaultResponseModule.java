@@ -60,7 +60,7 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer;
  *
  * @author Michael J. Simons
  */
-final class DefaultResponseModule extends SimpleModule {
+public final class DefaultResponseModule extends SimpleModule {
 
 	@Serial
 	private static final long serialVersionUID = -6600328341718439212L;
@@ -80,7 +80,7 @@ final class DefaultResponseModule extends SimpleModule {
 	 *
 	 * @param typeSystem Retrieved from the driver
 	 */
-	DefaultResponseModule(TypeSystem typeSystem) {
+	public DefaultResponseModule(TypeSystem typeSystem) {
 
 		this.typeSystem = typeSystem;
 		this.simpleTypes = Set.of(typeSystem.NULL(), typeSystem.BOOLEAN(), typeSystem.STRING(), typeSystem.INTEGER(), typeSystem.FLOAT());
@@ -99,7 +99,10 @@ final class DefaultResponseModule extends SimpleModule {
 		return value == null || simpleTypes.stream().anyMatch(value::hasType);
 	}
 
-	private interface NotificationMixIn {
+	/**
+	 * Not to be implemented. It is public only to be registered with GraalVM AoT via RegisterReflectionForBinding.
+	 */
+	public interface NotificationMixIn {
 
 		@JsonProperty
 		String code();
@@ -117,7 +120,10 @@ final class DefaultResponseModule extends SimpleModule {
 		org.neo4j.driver.summary.InputPosition position();
 	}
 
-	private interface InputPositionMixIn {
+	/**
+	 * Not to be implemented. It is public only to be registered with GraalVM AoT via RegisterReflectionForBinding.
+	 */
+	public interface InputPositionMixIn {
 
 		@JsonProperty
 		int column();
@@ -129,8 +135,11 @@ final class DefaultResponseModule extends SimpleModule {
 		int offset();
 	}
 
+	/**
+	 * Not to be implemented. It is public only to be registered with GraalVM AoT via RegisterReflectionForBinding.
+	 */
 	@JsonIncludeProperties({"code", "message"})
-	private interface Neo4jExceptionMixIn {
+	public interface Neo4jExceptionMixIn {
 
 		@JsonProperty
 		String code();

@@ -16,11 +16,18 @@
 package org.neo4j.http.config;
 
 import org.neo4j.driver.Driver;
-import org.neo4j.http.message.Formats;
+import org.neo4j.http.message.DefaultRequestFormatModule;
+import org.neo4j.http.message.DefaultResponseModule;
+import org.springframework.aot.hint.annotation.RegisterReflectionForBinding;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 /**
  * Configures Jackson.
@@ -28,14 +35,35 @@ import org.springframework.context.annotation.Configuration;
  * @author Michael J. Simons
  */
 @Configuration(proxyBeanMethods = false)
+@RegisterReflectionForBinding({
+	DefaultRequestFormatModule.AnnotatedQueryContainerMixIn.class,
+	DefaultResponseModule.InputPositionMixIn.class,
+	DefaultResponseModule.Neo4jExceptionMixIn.class,
+	DefaultResponseModule.NotificationMixIn.class,
+})
 public class JacksonConfig {
 
 	/**
-	 * @param driver needed to retrieve the typesystem
+	 * @param driver needed to retrieve the type-system
 	 * @return changes to the default, application context wide instance of {@link com.fasterxml.jackson.databind.ObjectMapper}
 	 */
 	@Bean
 	public Jackson2ObjectMapperBuilderCustomizer objectMapperBuilderCustomizer(@Autowired Driver driver) {
-		return Formats.defaultFor(driver)::accept;
+
+		return builder -> {
+			builder.modules(
+				new DefaultRequestFormatModule(),
+				new DefaultResponseModule(driver.defaultTypeSystem()),
+				new JavaTimeModule()
+			);
+
+			builder.featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+			builder.featuresToDisable(SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS);
+
+			builder.featuresToEnable(MapperFeature.DEFAULT_VIEW_INCLUSION);
+			builder.featuresToEnable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
+
+			builder.serializationInclusion(JsonInclude.Include.NON_ABSENT);
+		};
 	}
 }

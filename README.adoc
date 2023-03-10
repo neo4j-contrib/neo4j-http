@@ -94,6 +94,15 @@ You need Java 17 to create an executable Jar file and additional, Docker to run 
 ./mvnw clean spring-boot:build-image -Dspring-boot.build-image.imageName=neo4j/neo4j-http
 ----
 
+=== Creating a native image with GraalVM
+
+This requires at least GraalVM 22.3 with native image installed
+
+[source,bash]
+----
+./mvnw -Pnative clean package native:compile
+----
+
 === Running the Jar-File
 
 All https://docs.spring.io/spring-boot/docs/current/reference/html/application-properties.html#appendix.application-properties.data[Neo4j related data properties] - those are all that start with `spring.neo4j.*` - can be used to configure the Bolt connection. These can come from `application.properties`  or `application.yml` files. Basically, all features of https://docs.spring.io/spring-boot/docs/current/reference/html/features.html#features.external-config[externalized configuration] can be used.
@@ -104,7 +113,7 @@ The following connects the application to a locally running instance, using the 
 ----
 SPRING_NEO4J_URI=neo4j://localhost:7687 \
 SPRING_NEO4J_AUTHENTICATION_USERNAME=neo4j \
-SPRING_NEO4J_AUTHENTICATION_PASSWORD=secret \
+SPRING_NEO4J_AUTHENTICATION_PASSWORD=verysecret \
 java -jar neo4j-http/target/neo4j-http-0.0.1-SNAPSHOT-runnable.jar
 ----
 

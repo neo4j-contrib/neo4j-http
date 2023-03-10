@@ -52,7 +52,7 @@ import com.fasterxml.jackson.databind.node.ValueNode;
  * @author Gerrit Meier
  * @author Michael J. Simons
  */
-final class DefaultRequestFormatModule extends SimpleModule {
+public final class DefaultRequestFormatModule extends SimpleModule {
 
 	@Serial
 	private static final long serialVersionUID = 6857894267001773659L;
@@ -60,7 +60,7 @@ final class DefaultRequestFormatModule extends SimpleModule {
 	/**
 	 * Default instance
 	 */
-	DefaultRequestFormatModule() {
+	public DefaultRequestFormatModule() {
 		this.addDeserializer(Value.class, new ParameterDeserializer());
 		this.addDeserializer(Query.class, new QueryDeserializer());
 
@@ -68,7 +68,10 @@ final class DefaultRequestFormatModule extends SimpleModule {
 		this.addDeserializer(AnnotatedQuery.class, new AnnotatedQueryDeserializer());
 	}
 
-	private static abstract class AnnotatedQueryContainerMixIn {
+	/**
+	 * Not to be extended. It is public only to be registered with GraalVM AoT via RegisterReflectionForBinding.
+	 */
+	public static abstract class AnnotatedQueryContainerMixIn {
 
 		@JsonCreator
 		AnnotatedQueryContainerMixIn(@JsonProperty("statements") List<AnnotatedQuery> value) {
