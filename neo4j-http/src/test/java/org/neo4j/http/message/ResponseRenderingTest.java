@@ -43,14 +43,13 @@ import org.neo4j.driver.Driver;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.Values;
-import org.neo4j.driver.internal.types.InternalTypeSystem;
 import org.neo4j.driver.internal.value.NodeValue;
 import org.neo4j.driver.types.IsoDuration;
 import org.neo4j.driver.types.Node;
-import org.neo4j.http.db.AnnotatedQuery.Container;
-import org.neo4j.http.db.AnnotatedQuery.ResultFormat;
 import org.neo4j.http.app.Views;
 import org.neo4j.http.config.JacksonConfig;
+import org.neo4j.http.db.AnnotatedQuery.Container;
+import org.neo4j.http.db.AnnotatedQuery.ResultFormat;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -66,7 +65,6 @@ class ResponseRenderingTest {
 	ResponseRenderingTest() {
 
 		driver = mock(Driver.class);
-		when(driver.defaultTypeSystem()).thenReturn(InternalTypeSystem.TYPE_SYSTEM);
 
 		var jacksonObjectMapperBuilder = new Jackson2ObjectMapperBuilder();
 		new JacksonConfig().objectMapperBuilderCustomizer(driver).customize(jacksonObjectMapperBuilder);

@@ -84,7 +84,7 @@ class DefaultNeo4jAdapter implements Neo4jAdapter {
 						.flatMap(reactiveResult -> Mono.just(reactiveResult.keys())
 							.zipWith(Flux.from(reactiveResult.records()).collectList())
 							.flatMap(v -> Mono.just(v).zipWith(Mono.fromDirect(reactiveResult.consume()), (t, s) -> Tuples.of(t.getT1(), t.getT2(), s))))
-						.map(content -> new ResultAndSummary(EagerResult.success(content, annotatedQuery.includeStats(), annotatedQuery.resultDataContents(), driver.defaultTypeSystem()), content.getT3()));
+						.map(content -> new ResultAndSummary(EagerResult.success(content, annotatedQuery.includeStats(), annotatedQuery.resultDataContents()), content.getT3()));
 				}))).onErrorResume(Neo4jException.class, e -> Mono.just(new ResultAndSummary(EagerResult.error(e), null)))
 			)
 			.collect(ResultContainer::new, (container, element) -> {

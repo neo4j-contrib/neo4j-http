@@ -15,11 +15,10 @@
  */
 package org.neo4j.http.message;
 
-import static org.mockito.Mockito.when;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.neo4j.driver.Driver;
-import org.neo4j.driver.internal.types.InternalTypeSystem;
 import org.neo4j.http.app.Endpoint;
 import org.neo4j.http.config.JacksonConfig;
 import org.neo4j.http.db.Neo4jPrincipal;
@@ -39,10 +38,6 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 
 import reactor.core.publisher.Mono;
 
-import jakarta.annotation.PostConstruct;
-
-import java.util.List;
-
 /**
  * Test to ensure that the message conversion works with the given Jackson configuration of the application.
  *
@@ -58,11 +53,6 @@ public class RequestParsingIT {
 
 		@MockBean
 		Driver driver;
-
-		@PostConstruct
-		public void initMock() {
-			when(driver.defaultTypeSystem()).thenReturn(InternalTypeSystem.TYPE_SYSTEM);
-		}
 	}
 
 	@Autowired

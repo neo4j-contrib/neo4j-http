@@ -60,14 +60,14 @@ public record EagerResult(List<String> columns, List<ResultData> data, SummaryCo
 	public record ResultData(Record records, Map<String, Collection<Map<String, Object>>> graph, List<Object> rest) {
 	}
 
-	static EagerResult success(Tuple3<List<String>, List<Record>, ResultSummary> content, boolean includeStats, Set<ResultFormat> shape, TypeSystem typeSystem) {
+	static EagerResult success(Tuple3<List<String>, List<Record>, ResultSummary> content, boolean includeStats, Set<ResultFormat> shape) {
 
 		List<ResultData> resultData = new ArrayList<>();
 		for (Record record : content.getT2()) {
 			resultData.add(new ResultData(
 				shape.contains(ResultFormat.ROW) ? record : null,
-				shape.contains(ResultFormat.GRAPH) ? buildGraphModel(record, typeSystem) : null,
-				shape.contains(ResultFormat.REST) ? buildRestModel(record, typeSystem) : null
+				shape.contains(ResultFormat.GRAPH) ? buildGraphModel(record) : null,
+				shape.contains(ResultFormat.REST) ? buildRestModel(record) : null
 			));
 		}
 
@@ -75,7 +75,9 @@ public record EagerResult(List<String> columns, List<ResultData> data, SummaryCo
 		return new EagerResult(columns, resultData, includeStats ? content.getT3().counters() : null, null);
 	}
 
-	private static Map<String, Collection<Map<String, Object>>> buildGraphModel(Record row, TypeSystem typeSystem) {
+	private static Map<String, Collection<Map<String, Object>>> buildGraphModel(Record row) {
+
+		var typeSystem = TypeSystem.getDefault();
 
 		var graph = new HashMap<String, Collection<Map<String, Object>>>();
 		var nodes = new HashMap<Long, Map<String, Object>>();
@@ -142,7 +144,9 @@ public record EagerResult(List<String> columns, List<ResultData> data, SummaryCo
 	}
 
 	@SuppressWarnings("deprecation")
-	private static List<Object> buildRestModel(Record row, TypeSystem typeSystem) {
+	private static List<Object> buildRestModel(Record row) {
+
+		var typeSystem = TypeSystem.getDefault();
 
 		var rest = new ArrayList<>();
 		for (var column : row.values()) {

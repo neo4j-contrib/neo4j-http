@@ -16,6 +16,7 @@
 package org.neo4j.http.config;
 
 import org.neo4j.driver.Driver;
+import org.neo4j.driver.types.TypeSystem;
 import org.neo4j.http.message.DefaultRequestFormatModule;
 import org.neo4j.http.message.DefaultResponseModule;
 import org.springframework.aot.hint.annotation.RegisterReflectionForBinding;
@@ -53,7 +54,7 @@ public class JacksonConfig {
 		return builder -> {
 			builder.modules(
 				new DefaultRequestFormatModule(),
-				new DefaultResponseModule(driver.defaultTypeSystem()),
+				new DefaultResponseModule(TypeSystem.getDefault()),
 				new JavaTimeModule()
 			);
 
