@@ -116,7 +116,7 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<sortpom-maven-plugin.version>3.2.0</sortpom-maven-plugin.version>
-		<spring-boot.version>2.7.6</spring-boot.version>
+		<spring-boot.version>3.0.4</spring-boot.version>
 		<testcontainers.version>1.17.5</testcontainers.version>
 	</properties>
 
