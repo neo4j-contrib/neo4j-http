@@ -36,11 +36,12 @@ import org.springframework.security.authentication.ReactiveAuthenticationManager
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers;
 import org.springframework.test.web.reactive.server.WebTestClient;
+
 import reactor.core.publisher.Mono;
 
-import java.util.List;
+import jakarta.annotation.PostConstruct;
 
-import javax.annotation.PostConstruct;
+import java.util.List;
 
 /**
  * Test to ensure that the message conversion works with the given Jackson configuration of the application.
