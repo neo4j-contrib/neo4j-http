@@ -16,17 +16,10 @@
 package org.neo4j.http.auth;
 
 import java.util.List;
-import java.util.Objects;
 
-import org.neo4j.driver.AccessMode;
-import org.neo4j.driver.Driver;
-import org.neo4j.driver.SessionConfig;
 import org.neo4j.http.db.Neo4jPrincipal;
-import org.springframework.boot.autoconfigure.neo4j.Neo4jProperties;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import reactor.core.publisher.Mono;

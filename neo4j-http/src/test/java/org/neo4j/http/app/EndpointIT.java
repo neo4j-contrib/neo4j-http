@@ -59,7 +59,7 @@ class EndpointIT {
 			var driver = GraphDatabase.driver(neo4j.getBoltUrl(), AuthTokens.basic("neo4j", neo4j.getAdminPassword()), Config.builder().withLogging(Logging.none()).build());
 			var session = driver.session()
 		) {
-			session.run("CREATE USER jake IF NOT EXISTS SET PLAINTEXT PASSWORD 'xyz' SET PASSWORD CHANGE NOT REQUIRED").consume();
+			session.run("CREATE USER jake IF NOT EXISTS SET PLAINTEXT PASSWORD 'verysecret' SET PASSWORD CHANGE NOT REQUIRED").consume();
 		}
 
 		registry.add("spring.neo4j.authentication.username", () -> "neo4j");

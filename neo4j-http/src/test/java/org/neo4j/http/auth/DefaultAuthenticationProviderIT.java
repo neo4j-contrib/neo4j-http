@@ -56,7 +56,7 @@ class DefaultAuthenticationProviderIT {
 			var driver = GraphDatabase.driver(neo4j.getBoltUrl(), AuthTokens.basic("neo4j", neo4j.getAdminPassword()), Config.builder().withLogging(Logging.none()).build());
 			var session = driver.session()
 		) {
-			session.run("CREATE USER jake IF NOT EXISTS SET PLAINTEXT PASSWORD 'xyz' SET PASSWORD CHANGE NOT REQUIRED").consume();
+			session.run("CREATE USER jake IF NOT EXISTS SET PLAINTEXT PASSWORD 'verysecret' SET PASSWORD CHANGE NOT REQUIRED").consume();
 		}
 
 		registry.add("spring.neo4j.authentication.username", () -> "neo4j");
@@ -81,7 +81,7 @@ class DefaultAuthenticationProviderIT {
 	void shouldCheckImposter() {
 
 		var exchange = this.restTemplate
-			.withBasicAuth("jake", "xyz")
+			.withBasicAuth("jake", "verysecret")
 			.exchange("/tests/", HttpMethod.GET, null, String.class);
 		assertThat(exchange.getStatusCode()).isEqualTo(HttpStatus.OK);
 		assertThat(exchange.getBody()).isEqualTo("index-jake");

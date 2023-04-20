@@ -17,6 +17,7 @@ package org.neo4j.http.db;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
@@ -25,6 +26,7 @@ import org.neo4j.cypher.internal.ast.factory.ASTFactory;
 import org.neo4j.cypher.internal.ast.factory.ASTFactory.NULL;
 import org.neo4j.cypher.internal.ast.factory.AccessType;
 import org.neo4j.cypher.internal.ast.factory.ActionType;
+import org.neo4j.cypher.internal.ast.factory.CallInTxsOnErrorBehaviourType;
 import org.neo4j.cypher.internal.ast.factory.ConstraintType;
 import org.neo4j.cypher.internal.ast.factory.ConstraintVersion;
 import org.neo4j.cypher.internal.ast.factory.CreateIndexTypes;
@@ -48,18 +50,16 @@ import reactor.core.publisher.Mono;
 abstract class AbstractQueryEvaluator implements QueryEvaluator {
 
 	private static final Pattern CALL_PATTERN = Pattern.compile("(?ims)(?<!`)([^`\\s*]\\s*+CALL\\s*\\{.*}\\s*IN\\s+TRANSACTIONS)(?!`)");
-	private static final Pattern USING_PERIODIC_PATTERN = Pattern.compile("(?ims)(?<!`)(([^`\\s*]|^)\\s*+USING\\s+PERIODIC\\s+COMMIT\\s+)(?!`)");
 
 	protected final Driver driver;
-
 	private final Mono<Boolean> enterpriseEdition;
 
 	AbstractQueryEvaluator(Driver driver) {
 		this.driver = driver;
 		this.enterpriseEdition = Mono.usingWhen(
-			Mono.fromCallable(() -> driver.session(ReactiveSession.class)),
-			rxSession -> Mono.fromDirect(rxSession.run("CALL dbms.components() YIELD edition RETURN toLower(edition) = 'enterprise'")).flatMap(rs -> Mono.fromDirect(rs.records())).map(record -> record.get(0).asBoolean()),
-			ReactiveSession::close
+				Mono.fromCallable(() -> driver.session(ReactiveSession.class)),
+				rxSession -> Mono.fromDirect(rxSession.run("CALL dbms.components() YIELD edition RETURN toLower(edition) = 'enterprise'")).flatMap(rs -> Mono.fromDirect(rs.records())).map(record -> record.get(0).asBoolean()),
+				ReactiveSession::close
 		).cache();
 	}
 
@@ -77,15 +77,15 @@ abstract class AbstractQueryEvaluator implements QueryEvaluator {
 	protected final Mono<TransactionMode> getTransactionMode(String query) {
 
 		var result = TransactionMode.MANAGED;
-		if (CALL_PATTERN.matcher(query).find() || USING_PERIODIC_PATTERN.matcher(query).find()) {
+		if (CALL_PATTERN.matcher(query).find()) {
 			var characteristics = AbstractQueryEvaluator.getCharacteristics(query);
-			result = characteristics.callInTx() || characteristics.periodicCommit() ? TransactionMode.IMPLICIT : TransactionMode.MANAGED;
+			result = characteristics.callInTx() ? TransactionMode.IMPLICIT : TransactionMode.MANAGED;
 		}
 
 		return Mono.just(result);
 	}
 
-	private record QueryCharacteristics(boolean callInTx, boolean periodicCommit) {
+	private record QueryCharacteristics(boolean callInTx) {
 	}
 
 	/**
@@ -100,11 +100,11 @@ abstract class AbstractQueryEvaluator implements QueryEvaluator {
 			// We are using the side effects of the factory
 			@SuppressWarnings("unused")
 			var statement = new Cypher<>(astFactory,
-				ASTExceptionFactoryImpl.INSTANCE,
-				new CypherCharStream(query)).Statement();
-			return new QueryCharacteristics(astFactory.hasSeenCallInTx.get(), astFactory.hasSeenPeriodicCommit.get());
+					ASTExceptionFactoryImpl.INSTANCE,
+					new CypherCharStream(query)).Statement();
+			return new QueryCharacteristics(astFactory.hasSeenCallInTx.get());
 		} catch (Exception e) {
-			return new QueryCharacteristics(false, false);
+			return new QueryCharacteristics(false);
 		}
 	}
 
@@ -123,165 +123,164 @@ abstract class AbstractQueryEvaluator implements QueryEvaluator {
 	}
 
 	private static class ASTFactoryImpl implements ASTFactory<NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL> {
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL,
+			NULL> {
 
 		private final AtomicBoolean hasSeenCallInTx = new AtomicBoolean(false);
 
-		private final AtomicBoolean hasSeenPeriodicCommit = new AtomicBoolean(false);
-
-
 		@Override
-		public NULL newSingleQuery(NULL aNull, List<NULL> list) {
+		public NULL newSingleQuery(NULL p, List<NULL> nulls) {
 			return null;
 		}
 
 		@Override
-		public NULL newSingleQuery(List<NULL> list) {
+		public NULL newSingleQuery(List<NULL> nulls) {
 			return null;
 		}
 
 		@Override
-		public NULL newUnion(NULL aNull, NULL aNull2, NULL query1, boolean b) {
+		public NULL newUnion(NULL p, NULL lhs, NULL rhs, boolean all) {
 			return null;
 		}
 
 		@Override
-		public NULL periodicCommitQuery(NULL aNull, NULL pos1, String s, NULL aNull2, List<NULL> list) {
-			this.hasSeenPeriodicCommit.compareAndSet(false, true);
+		public NULL useClause(NULL p, NULL e) {
 			return null;
 		}
 
 		@Override
-		public NULL useClause(NULL aNull, NULL aNull2) {
+		public NULL newReturnClause(NULL p, boolean distinct, NULL aNull, List<NULL> order, NULL orderPos, NULL skip, NULL skipPosition, NULL limit, NULL limitPosition) {
 			return null;
 		}
 
 		@Override
-		public NULL newReturnClause(NULL aNull, boolean b, NULL aNull2, List<NULL> list, NULL pos1, NULL aNull3, NULL pos2, NULL expression1, NULL pos3) {
+		public NULL newReturnItems(NULL p, boolean returnAll, List<NULL> nulls) {
 			return null;
 		}
 
 		@Override
-		public NULL newReturnItems(NULL aNull, boolean b, List<NULL> list) {
+		public NULL newReturnItem(NULL p, NULL e, NULL v) {
 			return null;
 		}
 
 		@Override
-		public NULL newReturnItem(NULL aNull, NULL aNull2, NULL aNull3) {
+		public NULL newReturnItem(NULL p, NULL e, int eStartOffset, int eEndOffset) {
 			return null;
 		}
 
 		@Override
-		public NULL newReturnItem(NULL aNull, NULL aNull2, int i, int i1) {
+		public NULL orderDesc(NULL p, NULL e) {
 			return null;
 		}
 
 		@Override
-		public NULL orderDesc(NULL aNull, NULL aNull2) {
+		public NULL orderAsc(NULL p, NULL e) {
 			return null;
 		}
 
 		@Override
-		public NULL orderAsc(NULL aNull, NULL aNull2) {
+		public NULL whereClause(NULL p, NULL e) {
 			return null;
 		}
 
 		@Override
-		public NULL whereClause(NULL aNull, NULL aNull2) {
+		public NULL withClause(NULL p, NULL aNull, NULL aNull2) {
 			return null;
 		}
 
 		@Override
-		public NULL withClause(NULL aNull, NULL aNull2, NULL aNull3) {
+		public NULL matchClause(NULL p, boolean optional, List<NULL> nulls, NULL patternPos, List<NULL> nulls2, NULL aNull) {
 			return null;
 		}
 
 		@Override
-		public NULL matchClause(NULL aNull, boolean b, List<NULL> list, NULL pos1, List<NULL> list1, NULL aNull2) {
+		public NULL usingIndexHint(NULL p, NULL v, String labelOrRelType, List<String> properties, boolean seekOnly, HintIndexType indexType) {
 			return null;
 		}
 
 		@Override
-		public NULL usingIndexHint(NULL aNull, NULL aNull2, String s, List<String> list, boolean b, HintIndexType hintIndexType) {
+		public NULL usingJoin(NULL p, List<NULL> joinVariables) {
 			return null;
 		}
 
 		@Override
-		public NULL usingJoin(NULL aNull, List<NULL> list) {
+		public NULL usingScan(NULL p, NULL v, String labelOrRelType) {
 			return null;
 		}
 
 		@Override
-		public NULL usingScan(NULL aNull, NULL aNull2, String s) {
+		public NULL createClause(NULL p, List<NULL> nulls) {
 			return null;
 		}
 
 		@Override
-		public NULL createClause(NULL aNull, List<NULL> list) {
+		public NULL setClause(NULL p, List<NULL> nulls) {
 			return null;
 		}
 
 		@Override
-		public NULL setClause(NULL aNull, List<NULL> list) {
+		public NULL setProperty(NULL aNull, NULL value) {
 			return null;
 		}
 
 		@Override
-		public NULL setProperty(NULL aNull, NULL aNull2) {
+		public NULL setVariable(NULL aNull, NULL value) {
 			return null;
 		}
 
 		@Override
-		public NULL setVariable(NULL aNull, NULL aNull2) {
+		public NULL addAndSetVariable(NULL aNull, NULL value) {
 			return null;
 		}
 
 		@Override
-		public NULL addAndSetVariable(NULL aNull, NULL aNull2) {
+		public NULL setLabels(NULL aNull, List<StringPos<NULL>> value) {
 			return null;
 		}
 
 		@Override
-		public NULL setLabels(NULL aNull, List<StringPos<NULL>> list) {
-			return null;
-		}
-
-		@Override
-		public NULL removeClause(NULL aNull, List<NULL> list) {
+		public NULL removeClause(NULL p, List<NULL> nulls) {
 			return null;
 		}
 
@@ -291,88 +290,133 @@ abstract class AbstractQueryEvaluator implements QueryEvaluator {
 		}
 
 		@Override
-		public NULL removeLabels(NULL aNull, List<StringPos<NULL>> list) {
+		public NULL removeLabels(NULL aNull, List<StringPos<NULL>> labels) {
 			return null;
 		}
 
 		@Override
-		public NULL deleteClause(NULL aNull, boolean b, List<NULL> list) {
+		public NULL deleteClause(NULL p, boolean detach, List<NULL> nulls) {
 			return null;
 		}
 
 		@Override
-		public NULL unwindClause(NULL aNull, NULL aNull2, NULL aNull3) {
+		public NULL unwindClause(NULL p, NULL e, NULL v) {
 			return null;
 		}
 
 		@Override
-		public NULL mergeClause(NULL aNull, NULL aNull2, List<NULL> list, List<MergeActionType> list1, List<NULL> list2) {
+		public NULL mergeClause(NULL p, NULL aNull, List<NULL> nulls, List<MergeActionType> actionTypes, List<NULL> positions) {
 			return null;
 		}
 
 		@Override
-		public NULL callClause(NULL aNull, NULL pos1, NULL pos2, NULL pos3, List<String> list, String s, List<NULL> list1, boolean b, List<NULL> list2, NULL aNull2) {
+		public NULL callClause(NULL p, NULL namespacePosition, NULL procedureNamePosition, NULL procedureResultPosition, List<String> namespace, String name, List<NULL> arguments, boolean yieldAll, List<NULL> nulls, NULL aNull) {
 			return null;
 		}
 
 		@Override
-		public NULL callResultItem(NULL aNull, String s, NULL aNull2) {
+		public NULL callResultItem(NULL p, String name, NULL v) {
 			return null;
 		}
 
 		@Override
-		public NULL namedPattern(NULL aNull, NULL aNull2) {
+		public NULL namedPattern(NULL v, NULL aNull) {
 			return null;
 		}
 
 		@Override
-		public NULL shortestPathPattern(NULL aNull, NULL aNull2) {
+		public NULL shortestPathPattern(NULL p, NULL aNull) {
 			return null;
 		}
 
 		@Override
-		public NULL allShortestPathsPattern(NULL aNull, NULL aNull2) {
+		public NULL allShortestPathsPattern(NULL p, NULL aNull) {
 			return null;
 		}
 
 		@Override
-		public NULL everyPathPattern(List<NULL> list, List<NULL> list1) {
+		public NULL everyPathPattern(List<NULL> nulls) {
 			return null;
 		}
 
 		@Override
-		public NULL nodePattern(NULL aNull, NULL aNull2, List<StringPos<NULL>> list, NULL aNull3, NULL expression1) {
+		public NULL nodePattern(NULL p, NULL v, NULL aNull, NULL properties, NULL predicate) {
 			return null;
 		}
 
 		@Override
-		public NULL relationshipPattern(NULL aNull, boolean b, boolean b1, NULL aNull2, List<StringPos<NULL>> list, NULL aNull3, NULL aNull4, boolean b2) {
+		public NULL relationshipPattern(NULL p, boolean left, boolean right, NULL v, NULL aNull, NULL aNull2, NULL properties, NULL predicate) {
 			return null;
 		}
 
 		@Override
-		public NULL pathLength(NULL aNull, NULL pos1, NULL pos2, String s, String s1) {
+		public NULL pathLength(NULL p, NULL pMin, NULL pMax, String minLength, String maxLength) {
 			return null;
 		}
 
 		@Override
-		public NULL loadCsvClause(NULL aNull, boolean b, NULL aNull2, NULL aNull3, String s) {
+		public NULL intervalPathQuantifier(NULL p, NULL posLowerBound, NULL posUpperBound, String lowerBound, String upperBound) {
 			return null;
 		}
 
 		@Override
-		public NULL foreachClause(NULL aNull, NULL aNull2, NULL aNull3, List<NULL> list) {
+		public NULL fixedPathQuantifier(NULL p, NULL valuePos, String value) {
 			return null;
 		}
 
 		@Override
-		public NULL subqueryClause(NULL aNull, NULL aNull2, NULL aNull3) {
+		public NULL plusPathQuantifier(NULL p) {
 			return null;
 		}
 
 		@Override
-		public NULL subqueryInTransactionsParams(NULL aNull, NULL aNull2) {
-			this.hasSeenCallInTx.compareAndSet(false, true);
+		public NULL starPathQuantifier(NULL p) {
+			return null;
+		}
+
+		@Override
+		public NULL parenthesizedPathPattern(NULL p, NULL internalPattern, NULL where, NULL aNull) {
+			return null;
+		}
+
+		@Override
+		public NULL quantifiedRelationship(NULL rel, NULL aNull) {
+			return null;
+		}
+
+		@Override
+		public NULL loadCsvClause(NULL p, boolean headers, NULL source, NULL v, String fieldTerminator) {
+			return null;
+		}
+
+		@Override
+		public NULL foreachClause(NULL p, NULL v, NULL list, List<NULL> nulls) {
+			return null;
+		}
+
+		@Override
+		public NULL subqueryClause(NULL p, NULL subquery, NULL inTransactions) {
+			return null;
+		}
+
+		@Override
+		public NULL subqueryInTransactionsParams(NULL p, NULL batchParams, NULL errorParams, NULL reportParams) {
+			hasSeenCallInTx.set(true);
+			return null;
+		}
+
+		@Override
+		public NULL subqueryInTransactionsBatchParameters(NULL p, NULL batchSize) {
+			return null;
+		}
+
+		@Override
+		public NULL subqueryInTransactionsErrorParameters(NULL p, CallInTxsOnErrorBehaviourType onErrorBehaviour) {
+			return null;
+		}
+
+		@Override
+		public NULL subqueryInTransactionsReportParameters(NULL p, NULL v) {
 			return null;
 		}
 
@@ -382,257 +426,277 @@ abstract class AbstractQueryEvaluator implements QueryEvaluator {
 		}
 
 		@Override
-		public NULL hasCatalog(NULL aNull) {
+		public NULL yieldClause(NULL p, boolean returnAll, List<NULL> nulls, NULL returnItemsPosition, List<NULL> orderBy, NULL orderPos, NULL skip, NULL skipPosition, NULL limit, NULL limitPosition, NULL aNull) {
 			return null;
 		}
 
 		@Override
-		public NULL yieldClause(NULL aNull, boolean b, List<NULL> list, NULL pos1, List<NULL> list1, NULL pos2, NULL aNull2, NULL pos3, NULL expression1, NULL pos4, NULL aNull3) {
+		public NULL showIndexClause(NULL p, ShowCommandFilterTypes indexType, boolean brief, boolean verbose, NULL aNull, boolean hasYield) {
 			return null;
 		}
 
 		@Override
-		public NULL showIndexClause(NULL aNull, ShowCommandFilterTypes showCommandFilterTypes, boolean b, boolean b1, NULL aNull2, boolean b2) {
+		public NULL showConstraintClause(NULL p, ShowCommandFilterTypes constraintType, boolean brief, boolean verbose, NULL aNull, boolean hasYield) {
 			return null;
 		}
 
 		@Override
-		public NULL showConstraintClause(NULL aNull, ShowCommandFilterTypes showCommandFilterTypes, boolean b, boolean b1, NULL aNull2, boolean b2) {
+		public NULL showProcedureClause(NULL p, boolean currentUser, String user, NULL aNull, boolean hasYield) {
 			return null;
 		}
 
 		@Override
-		public NULL showProcedureClause(NULL aNull, boolean b, String s, NULL aNull2, boolean b1) {
+		public NULL showFunctionClause(NULL p, ShowCommandFilterTypes functionType, boolean currentUser, String user, NULL aNull, boolean hasYield) {
 			return null;
 		}
 
 		@Override
-		public NULL showFunctionClause(NULL aNull, ShowCommandFilterTypes showCommandFilterTypes, boolean b, String s, NULL aNull2, boolean b1) {
+		public NULL showTransactionsClause(NULL p, SimpleEither<List<String>, NULL> ids, NULL aNull, NULL yieldClause) {
 			return null;
 		}
 
 		@Override
-		public NULL showTransactionsClause(NULL aNull, SimpleEither<List<String>, NULL> simpleEither, NULL aNull2, boolean b) {
+		public NULL terminateTransactionsClause(NULL p, SimpleEither<List<String>, NULL> ids, NULL aNull, NULL yieldClause) {
 			return null;
 		}
 
 		@Override
-		public NULL terminateTransactionsClause(NULL aNull, SimpleEither<List<String>, NULL> simpleEither) {
+		public NULL turnYieldToWith(NULL yieldClause) {
 			return null;
 		}
 
 		@Override
-		public NULL createConstraint(NULL aNull, ConstraintType constraintType, boolean b, boolean b1, String s, NULL aNull2, StringPos<NULL> stringPos, List<NULL> list, SimpleEither<Map<String, NULL>, NULL> simpleEither, boolean b2, ConstraintVersion constraintVersion) {
+		public NULL showSettingsClause(NULL p, SimpleEither<List<String>, NULL> names, NULL aNull, boolean hasYield) {
 			return null;
 		}
 
 		@Override
-		public NULL dropConstraint(NULL aNull, String s, boolean b) {
+		public NULL createConstraint(NULL p, ConstraintType constraintType, boolean replace, boolean ifNotExists, String constraintName, NULL aNull, StringPos<NULL> label, List<NULL> nulls, SimpleEither<Map<String, NULL>, NULL> options, boolean containsOn, ConstraintVersion constraintVersion) {
 			return null;
 		}
 
 		@Override
-		public NULL dropConstraint(NULL aNull, ConstraintType constraintType, NULL aNull2, StringPos<NULL> stringPos, List<NULL> list) {
+		public NULL dropConstraint(NULL p, String name, boolean ifExists) {
 			return null;
 		}
 
 		@Override
-		public NULL createIndexWithOldSyntax(NULL aNull, StringPos<NULL> stringPos, List<StringPos<NULL>> list) {
+		public NULL dropConstraint(NULL p, ConstraintType constraintType, NULL aNull, StringPos<NULL> label, List<NULL> nulls) {
 			return null;
 		}
 
 		@Override
-		public NULL createLookupIndex(NULL aNull, boolean b, boolean b1, boolean b2, String s, NULL aNull2, StringPos<NULL> stringPos, NULL variable1, SimpleEither<Map<String, NULL>, NULL> simpleEither) {
+		public NULL createIndexWithOldSyntax(NULL p, StringPos<NULL> label, List<StringPos<NULL>> properties) {
 			return null;
 		}
 
 		@Override
-		public NULL createIndex(NULL aNull, boolean b, boolean b1, boolean b2, String s, NULL aNull2, StringPos<NULL> stringPos, List<NULL> list, SimpleEither<Map<String, NULL>, NULL> simpleEither, CreateIndexTypes createIndexTypes) {
+		public NULL createLookupIndex(NULL p, boolean replace, boolean ifNotExists, boolean isNode, String indexName, NULL aNull, StringPos<NULL> functionName, NULL functionParameter, SimpleEither<Map<String, NULL>, NULL> options) {
 			return null;
 		}
 
 		@Override
-		public NULL createFulltextIndex(NULL aNull, boolean b, boolean b1, boolean b2, String s, NULL aNull2, List<StringPos<NULL>> list, List<NULL> list1, SimpleEither<Map<String, NULL>, NULL> simpleEither) {
+		public NULL createIndex(NULL p, boolean replace, boolean ifNotExists, boolean isNode, String indexName, NULL aNull, StringPos<NULL> label, List<NULL> nulls, SimpleEither<Map<String, NULL>, NULL> options, CreateIndexTypes indexType) {
 			return null;
 		}
 
 		@Override
-		public NULL dropIndex(NULL aNull, String s, boolean b) {
+		public NULL createFulltextIndex(NULL p, boolean replace, boolean ifNotExists, boolean isNode, String indexName, NULL aNull, List<StringPos<NULL>> labels, List<NULL> nulls, SimpleEither<Map<String, NULL>, NULL> options) {
 			return null;
 		}
 
 		@Override
-		public NULL dropIndex(NULL aNull, StringPos<NULL> stringPos, List<StringPos<NULL>> list) {
+		public NULL dropIndex(NULL p, String name, boolean ifExists) {
 			return null;
 		}
 
 		@Override
-		public NULL createRole(NULL aNull, boolean b, SimpleEither<String, NULL> simpleEither, SimpleEither<String, NULL> simpleEither1, boolean b1) {
+		public NULL dropIndex(NULL p, StringPos<NULL> label, List<StringPos<NULL>> propertyNames) {
 			return null;
 		}
 
 		@Override
-		public NULL dropRole(NULL aNull, SimpleEither<String, NULL> simpleEither, boolean b) {
+		public NULL createRole(NULL p, boolean replace, SimpleEither<String, NULL> roleName, SimpleEither<String, NULL> fromRole, boolean ifNotExists) {
 			return null;
 		}
 
 		@Override
-		public NULL renameRole(NULL aNull, SimpleEither<String, NULL> simpleEither, SimpleEither<String, NULL> simpleEither1, boolean b) {
+		public NULL dropRole(NULL p, SimpleEither<String, NULL> roleName, boolean ifExists) {
 			return null;
 		}
 
 		@Override
-		public NULL showRoles(NULL aNull, boolean b, boolean b1, NULL aNull2, NULL aNull3, NULL aNull4) {
+		public NULL renameRole(NULL p, SimpleEither<String, NULL> fromRoleName, SimpleEither<String, NULL> toRoleName, boolean ifExists) {
 			return null;
 		}
 
 		@Override
-		public NULL grantRoles(NULL aNull, List<SimpleEither<String, NULL>> list, List<SimpleEither<String, NULL>> list1) {
+		public NULL showRoles(NULL p, boolean withUsers, boolean showAll, NULL yieldExpr, NULL returnWithoutGraph, NULL aNull) {
 			return null;
 		}
 
 		@Override
-		public NULL revokeRoles(NULL aNull, List<SimpleEither<String, NULL>> list, List<SimpleEither<String, NULL>> list1) {
+		public NULL grantRoles(NULL p, List<SimpleEither<String, NULL>> roles, List<SimpleEither<String, NULL>> users) {
 			return null;
 		}
 
 		@Override
-		public NULL createUser(NULL aNull, boolean b, boolean b1, SimpleEither<String, NULL> simpleEither, NULL aNull2, boolean b2, boolean b3, Boolean aBoolean, SimpleEither<String, NULL> simpleEither1) {
+		public NULL revokeRoles(NULL p, List<SimpleEither<String, NULL>> roles, List<SimpleEither<String, NULL>> users) {
 			return null;
 		}
 
 		@Override
-		public NULL dropUser(NULL aNull, boolean b, SimpleEither<String, NULL> simpleEither) {
+		public NULL createUser(NULL p, boolean replace, boolean ifNotExists, SimpleEither<String, NULL> username, NULL password, boolean encrypted, boolean changeRequired, Boolean suspended, NULL homeDatabase) {
 			return null;
 		}
 
 		@Override
-		public NULL renameUser(NULL aNull, SimpleEither<String, NULL> simpleEither, SimpleEither<String, NULL> simpleEither1, boolean b) {
+		public NULL dropUser(NULL p, boolean ifExists, SimpleEither<String, NULL> username) {
 			return null;
 		}
 
 		@Override
-		public NULL setOwnPassword(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL renameUser(NULL p, SimpleEither<String, NULL> fromUserName, SimpleEither<String, NULL> toUserName, boolean ifExists) {
 			return null;
 		}
 
 		@Override
-		public NULL alterUser(NULL aNull, boolean b, SimpleEither<String, NULL> simpleEither, NULL aNull2, boolean b1, Boolean aBoolean, Boolean aBoolean1, SimpleEither<String, NULL> simpleEither1, boolean b2) {
+		public NULL setOwnPassword(NULL p, NULL currentPassword, NULL newPassword) {
 			return null;
 		}
 
 		@Override
-		public NULL passwordExpression(NULL aNull) {
+		public NULL alterUser(NULL p, boolean ifExists, SimpleEither<String, NULL> username, NULL password, boolean encrypted, Boolean changeRequired, Boolean suspended, NULL homeDatabase, boolean removeHome) {
 			return null;
 		}
 
 		@Override
-		public NULL passwordExpression(NULL aNull, String s) {
+		public NULL passwordExpression(NULL password) {
 			return null;
 		}
 
 		@Override
-		public NULL showUsers(NULL aNull, NULL aNull2, NULL aNull3, NULL aNull4) {
+		public NULL passwordExpression(NULL p, String password) {
 			return null;
 		}
 
 		@Override
-		public NULL showCurrentUser(NULL aNull, NULL aNull2, NULL aNull3, NULL aNull4) {
+		public NULL showUsers(NULL p, NULL yieldExpr, NULL returnWithoutGraph, NULL aNull) {
 			return null;
 		}
 
 		@Override
-		public NULL grantPrivilege(NULL aNull, List<SimpleEither<String, NULL>> list, NULL aNull2) {
+		public NULL showCurrentUser(NULL p, NULL yieldExpr, NULL returnWithoutGraph, NULL aNull) {
 			return null;
 		}
 
 		@Override
-		public NULL denyPrivilege(NULL aNull, List<SimpleEither<String, NULL>> list, NULL aNull2) {
+		public NULL showAllPrivileges(NULL p, boolean asCommand, boolean asRevoke, NULL yieldExpr, NULL returnWithoutGraph, NULL aNull) {
 			return null;
 		}
 
 		@Override
-		public NULL revokePrivilege(NULL aNull, List<SimpleEither<String, NULL>> list, NULL aNull2, boolean b, boolean b1) {
+		public NULL showRolePrivileges(NULL p, List<SimpleEither<String, NULL>> roles, boolean asCommand, boolean asRevoke, NULL yieldExpr, NULL returnWithoutGraph, NULL aNull) {
 			return null;
 		}
 
 		@Override
-		public NULL databasePrivilege(NULL aNull, NULL aNull2, List<NULL> list, List<NULL> list1) {
+		public NULL showUserPrivileges(NULL p, List<SimpleEither<String, NULL>> users, boolean asCommand, boolean asRevoke, NULL yieldExpr, NULL returnWithoutGraph, NULL aNull) {
 			return null;
 		}
 
 		@Override
-		public NULL dbmsPrivilege(NULL aNull, NULL aNull2, List<NULL> list) {
+		public NULL grantPrivilege(NULL p, List<SimpleEither<String, NULL>> roles, NULL privilege) {
 			return null;
 		}
 
 		@Override
-		public NULL graphPrivilege(NULL aNull, NULL aNull2, List<NULL> list, NULL aNull3, List<NULL> list1) {
+		public NULL denyPrivilege(NULL p, List<SimpleEither<String, NULL>> roles, NULL privilege) {
 			return null;
 		}
 
 		@Override
-		public NULL privilegeAction(ActionType actionType) {
+		public NULL revokePrivilege(NULL p, List<SimpleEither<String, NULL>> roles, NULL privilege, boolean revokeGrant, boolean revokeDeny) {
 			return null;
 		}
 
 		@Override
-		public NULL propertiesResource(NULL aNull, List<String> list) {
+		public NULL databasePrivilege(NULL p, NULL aNull, List<NULL> scope, List<NULL> qualifier, boolean immutable) {
 			return null;
 		}
 
 		@Override
-		public NULL allPropertiesResource(NULL aNull) {
+		public NULL dbmsPrivilege(NULL p, NULL aNull, List<NULL> qualifier, boolean immutable) {
 			return null;
 		}
 
 		@Override
-		public NULL labelsResource(NULL aNull, List<String> list) {
+		public NULL graphPrivilege(NULL p, NULL aNull, List<NULL> scope, NULL aNull2, List<NULL> qualifier, boolean immutable) {
 			return null;
 		}
 
 		@Override
-		public NULL allLabelsResource(NULL aNull) {
+		public NULL privilegeAction(ActionType action) {
 			return null;
 		}
 
 		@Override
-		public NULL databaseResource(NULL aNull) {
+		public NULL propertiesResource(NULL p, List<String> property) {
 			return null;
 		}
 
 		@Override
-		public NULL noResource(NULL aNull) {
+		public NULL allPropertiesResource(NULL p) {
 			return null;
 		}
 
 		@Override
-		public NULL labelQualifier(NULL aNull, String s) {
+		public NULL labelsResource(NULL p, List<String> label) {
 			return null;
 		}
 
 		@Override
-		public NULL relationshipQualifier(NULL aNull, String s) {
+		public NULL allLabelsResource(NULL p) {
 			return null;
 		}
 
 		@Override
-		public NULL elementQualifier(NULL aNull, String s) {
+		public NULL databaseResource(NULL p) {
 			return null;
 		}
 
 		@Override
-		public NULL allElementsQualifier(NULL aNull) {
+		public NULL noResource(NULL p) {
 			return null;
 		}
 
 		@Override
-		public NULL allLabelsQualifier(NULL aNull) {
+		public NULL labelQualifier(NULL p, String label) {
 			return null;
 		}
 
 		@Override
-		public NULL allRelationshipsQualifier(NULL aNull) {
+		public NULL relationshipQualifier(NULL p, String relationshipType) {
+			return null;
+		}
+
+		@Override
+		public NULL elementQualifier(NULL p, String name) {
+			return null;
+		}
+
+		@Override
+		public NULL allElementsQualifier(NULL p) {
+			return null;
+		}
+
+		@Override
+		public NULL allLabelsQualifier(NULL p) {
+			return null;
+		}
+
+		@Override
+		public NULL allRelationshipsQualifier(NULL p) {
 			return null;
 		}
 
@@ -647,7 +711,7 @@ abstract class AbstractQueryEvaluator implements QueryEvaluator {
 		}
 
 		@Override
-		public List<NULL> userQualifier(List<SimpleEither<String, NULL>> list) {
+		public List<NULL> userQualifier(List<SimpleEither<String, NULL>> users) {
 			return null;
 		}
 
@@ -657,422 +721,542 @@ abstract class AbstractQueryEvaluator implements QueryEvaluator {
 		}
 
 		@Override
-		public List<NULL> graphScopes(NULL aNull, List<SimpleEither<String, NULL>> list, ScopeType scopeType) {
+		public List<NULL> functionQualifier(NULL p, List<String> functions) {
 			return null;
 		}
 
 		@Override
-		public List<NULL> databaseScopes(NULL aNull, List<SimpleEither<String, NULL>> list, ScopeType scopeType) {
+		public List<NULL> procedureQualifier(NULL p, List<String> procedures) {
 			return null;
 		}
 
 		@Override
-		public NULL createDatabase(NULL aNull, boolean b, SimpleEither<String, NULL> simpleEither, boolean b1, NULL aNull2, SimpleEither<Map<String, NULL>, NULL> simpleEither1) {
+		public List<NULL> settingQualifier(NULL p, List<String> names) {
 			return null;
 		}
 
 		@Override
-		public NULL dropDatabase(NULL aNull, SimpleEither<String, NULL> simpleEither, boolean b, boolean b1, NULL aNull2) {
+		public List<NULL> graphScopes(NULL p, List<NULL> graphNames, ScopeType scopeType) {
 			return null;
 		}
 
 		@Override
-		public NULL alterDatabase(NULL aNull, SimpleEither<String, NULL> simpleEither, boolean b, AccessType accessType) {
+		public List<NULL> databaseScopes(NULL p, List<NULL> nulls, ScopeType scopeType) {
 			return null;
 		}
 
 		@Override
-		public NULL showDatabase(NULL aNull, NULL aNull2, NULL aNull3, NULL aNull4, NULL aNull5) {
+		public NULL enableServer(NULL p, SimpleEither<String, NULL> serverName, SimpleEither<Map<String, NULL>, NULL> options) {
 			return null;
 		}
 
 		@Override
-		public NULL startDatabase(NULL aNull, SimpleEither<String, NULL> simpleEither, NULL aNull2) {
+		public NULL alterServer(NULL p, SimpleEither<String, NULL> serverName, SimpleEither<Map<String, NULL>, NULL> options) {
 			return null;
 		}
 
 		@Override
-		public NULL stopDatabase(NULL aNull, SimpleEither<String, NULL> simpleEither, NULL aNull2) {
+		public NULL renameServer(NULL p, SimpleEither<String, NULL> serverName, SimpleEither<String, NULL> newName) {
 			return null;
 		}
 
 		@Override
-		public NULL databaseScope(NULL aNull, SimpleEither<String, NULL> simpleEither, boolean b, boolean b1) {
+		public NULL dropServer(NULL p, SimpleEither<String, NULL> serverName) {
 			return null;
 		}
 
 		@Override
-		public NULL wait(boolean b, long l) {
+		public NULL showServers(NULL p, NULL yieldExpr, NULL returnWithoutGraph, NULL aNull) {
 			return null;
 		}
 
 		@Override
-		public NULL createLocalDatabaseAlias(NULL aNull, boolean b, SimpleEither<String, NULL> simpleEither, SimpleEither<String, NULL> simpleEither1, boolean b1) {
+		public NULL deallocateServers(NULL p, boolean dryRun, List<SimpleEither<String, NULL>> serverNames) {
 			return null;
 		}
 
 		@Override
-		public NULL createRemoteDatabaseAlias(NULL aNull, boolean b, SimpleEither<String, NULL> simpleEither, SimpleEither<String, NULL> simpleEither1, boolean b1, SimpleEither<String, NULL> simpleEither2, SimpleEither<String, NULL> simpleEither3, NULL aNull2, SimpleEither<Map<String, NULL>, NULL> simpleEither4) {
+		public NULL reallocateDatabases(NULL p, boolean dryRun) {
 			return null;
 		}
 
 		@Override
-		public NULL alterLocalDatabaseAlias(NULL aNull, SimpleEither<String, NULL> simpleEither, SimpleEither<String, NULL> simpleEither1, boolean b) {
+		public NULL createDatabase(NULL p, boolean replace, NULL aNull, boolean ifNotExists, NULL aNull2, SimpleEither<Map<String, NULL>, NULL> options, Integer topologyPrimaries, Integer topologySecondaries) {
 			return null;
 		}
 
 		@Override
-		public NULL alterRemoteDatabaseAlias(NULL aNull, SimpleEither<String, NULL> simpleEither, SimpleEither<String, NULL> simpleEither1, boolean b, SimpleEither<String, NULL> simpleEither2, SimpleEither<String, NULL> simpleEither3, NULL aNull2, SimpleEither<Map<String, NULL>, NULL> simpleEither4) {
+		public NULL createCompositeDatabase(NULL p, boolean replace, NULL compositeDatabaseName, boolean ifNotExists, SimpleEither<Map<String, NULL>, NULL> options, NULL aNull) {
 			return null;
 		}
 
 		@Override
-		public NULL dropAlias(NULL aNull, SimpleEither<String, NULL> simpleEither, boolean b) {
+		public NULL dropDatabase(NULL p, NULL aNull, boolean ifExists, boolean composite, boolean dumpData, NULL wait) {
 			return null;
 		}
 
 		@Override
-		public NULL showAliases(NULL aNull, NULL aNull2, NULL aNull3, NULL aNull4) {
+		public NULL alterDatabase(NULL p, NULL aNull, boolean ifExists, AccessType accessType, Integer topologyPrimaries, Integer topologySecondaries, Map<String, NULL> options, Set<String> optionsToRemove) {
 			return null;
 		}
 
 		@Override
-		public NULL newVariable(NULL aNull, String s) {
+		public NULL showDatabase(NULL p, NULL aNull, NULL yieldExpr, NULL returnWithoutGraph, NULL aNull2) {
 			return null;
 		}
 
 		@Override
-		public NULL newParameter(NULL aNull, NULL aNull2, ParameterType parameterType) {
+		public NULL startDatabase(NULL p, NULL aNull, NULL wait) {
 			return null;
 		}
 
 		@Override
-		public NULL newParameter(NULL aNull, String s, ParameterType parameterType) {
+		public NULL stopDatabase(NULL p, NULL aNull, NULL wait) {
 			return null;
 		}
 
 		@Override
-		public NULL newSensitiveStringParameter(NULL aNull, NULL aNull2) {
+		public NULL databaseScope(NULL p, NULL aNull, boolean isDefault, boolean isHome) {
 			return null;
 		}
 
 		@Override
-		public NULL newSensitiveStringParameter(NULL aNull, String s) {
+		public NULL wait(boolean wait, long seconds) {
 			return null;
 		}
 
 		@Override
-		public NULL oldParameter(NULL aNull, NULL aNull2) {
+		public NULL databaseName(NULL p, List<String> names) {
 			return null;
 		}
 
 		@Override
-		public NULL newDouble(NULL aNull, String s) {
+		public NULL databaseName(NULL param) {
 			return null;
 		}
 
 		@Override
-		public NULL newDecimalInteger(NULL aNull, String s, boolean b) {
+		public NULL createLocalDatabaseAlias(NULL p, boolean replace, NULL aliasName, NULL targetName, boolean ifNotExists, SimpleEither<Map<String, NULL>, NULL> properties) {
 			return null;
 		}
 
 		@Override
-		public NULL newHexInteger(NULL aNull, String s, boolean b) {
+		public NULL createRemoteDatabaseAlias(NULL p, boolean replace, NULL aliasName, NULL targetName, boolean ifNotExists, SimpleEither<String, NULL> url, SimpleEither<String, NULL> username, NULL password, SimpleEither<Map<String, NULL>, NULL> driverSettings, SimpleEither<Map<String, NULL>, NULL> properties) {
 			return null;
 		}
 
 		@Override
-		public NULL newOctalInteger(NULL aNull, String s, boolean b) {
+		public NULL alterLocalDatabaseAlias(NULL p, NULL aliasName, NULL targetName, boolean ifExists, SimpleEither<Map<String, NULL>, NULL> properties) {
 			return null;
 		}
 
 		@Override
-		public NULL newString(NULL aNull, String s) {
+		public NULL alterRemoteDatabaseAlias(NULL p, NULL aliasName, NULL targetName, boolean ifExists, SimpleEither<String, NULL> url, SimpleEither<String, NULL> username, NULL password, SimpleEither<Map<String, NULL>, NULL> driverSettings, SimpleEither<Map<String, NULL>, NULL> properties) {
 			return null;
 		}
 
 		@Override
-		public NULL newTrueLiteral(NULL aNull) {
+		public NULL dropAlias(NULL p, NULL aliasName, boolean ifExists) {
 			return null;
 		}
 
 		@Override
-		public NULL newFalseLiteral(NULL aNull) {
+		public NULL showAliases(NULL p, NULL aliasName, NULL yieldExpr, NULL returnWithoutGraph, NULL aNull) {
 			return null;
 		}
 
 		@Override
-		public NULL newNullLiteral(NULL aNull) {
+		public NULL newVariable(NULL p, String name) {
 			return null;
 		}
 
 		@Override
-		public NULL listLiteral(NULL aNull, List<NULL> list) {
+		public NULL newParameter(NULL p, NULL v, ParameterType type) {
 			return null;
 		}
 
 		@Override
-		public NULL mapLiteral(NULL aNull, List<StringPos<NULL>> list, List<NULL> list1) {
+		public NULL newParameter(NULL p, String offset, ParameterType type) {
 			return null;
 		}
 
 		@Override
-		public NULL hasLabelsOrTypes(NULL aNull, List<StringPos<NULL>> list) {
+		public NULL newSensitiveStringParameter(NULL p, NULL v) {
 			return null;
 		}
 
 		@Override
-		public NULL property(NULL aNull, StringPos<NULL> stringPos) {
+		public NULL newSensitiveStringParameter(NULL p, String offset) {
 			return null;
 		}
 
 		@Override
-		public NULL or(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL newDouble(NULL p, String image) {
 			return null;
 		}
 
 		@Override
-		public NULL xor(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL newDecimalInteger(NULL p, String image, boolean negated) {
 			return null;
 		}
 
 		@Override
-		public NULL and(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL newHexInteger(NULL p, String image, boolean negated) {
 			return null;
 		}
 
 		@Override
-		public NULL ands(List<NULL> list) {
+		public NULL newOctalInteger(NULL p, String image, boolean negated) {
 			return null;
 		}
 
 		@Override
-		public NULL not(NULL aNull, NULL aNull2) {
+		public NULL newString(NULL p, String image) {
 			return null;
 		}
 
 		@Override
-		public NULL plus(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL newTrueLiteral(NULL p) {
 			return null;
 		}
 
 		@Override
-		public NULL minus(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL newFalseLiteral(NULL p) {
 			return null;
 		}
 
 		@Override
-		public NULL multiply(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL newInfinityLiteral(NULL p) {
 			return null;
 		}
 
 		@Override
-		public NULL divide(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL newNaNLiteral(NULL p) {
 			return null;
 		}
 
 		@Override
-		public NULL modulo(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL newNullLiteral(NULL p) {
 			return null;
 		}
 
 		@Override
-		public NULL pow(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL listLiteral(NULL p, List<NULL> values) {
 			return null;
 		}
 
 		@Override
-		public NULL unaryPlus(NULL aNull) {
+		public NULL mapLiteral(NULL p, List<StringPos<NULL>> keys, List<NULL> values) {
 			return null;
 		}
 
 		@Override
-		public NULL unaryPlus(NULL aNull, NULL aNull2) {
+		public NULL property(NULL subject, StringPos<NULL> propertyKeyName) {
 			return null;
 		}
 
 		@Override
-		public NULL unaryMinus(NULL aNull, NULL aNull2) {
+		public NULL or(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL eq(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL xor(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL neq(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL and(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL neq2(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL labelConjunction(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL lte(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL labelDisjunction(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL gte(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL labelNegation(NULL p, NULL e) {
 			return null;
 		}
 
 		@Override
-		public NULL lt(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL labelWildcard(NULL p) {
 			return null;
 		}
 
 		@Override
-		public NULL gt(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL labelLeaf(NULL p, String e, NULL aNull) {
 			return null;
 		}
 
 		@Override
-		public NULL regeq(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL labelColonConjunction(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL startsWith(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL labelColonDisjunction(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL endsWith(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL labelExpressionPredicate(NULL subject, NULL exp) {
 			return null;
 		}
 
 		@Override
-		public NULL contains(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL ands(List<NULL> exprs) {
 			return null;
 		}
 
 		@Override
-		public NULL in(NULL aNull, NULL aNull2, NULL expression1) {
+		public NULL not(NULL p, NULL e) {
 			return null;
 		}
 
 		@Override
-		public NULL isNull(NULL aNull, NULL aNull2) {
+		public NULL plus(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL isNotNull(NULL aNull, NULL aNull2) {
+		public NULL minus(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL listLookup(NULL aNull, NULL expression1) {
+		public NULL multiply(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL listSlice(NULL aNull, NULL aNull2, NULL expression1, NULL expression2) {
+		public NULL divide(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL newCountStar(NULL aNull) {
+		public NULL modulo(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL functionInvocation(NULL aNull, NULL pos1, List<String> list, String s, boolean b, List<NULL> list1) {
+		public NULL pow(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL listComprehension(NULL aNull, NULL aNull2, NULL aNull3, NULL expression1, NULL expression2) {
+		public NULL unaryPlus(NULL e) {
 			return null;
 		}
 
 		@Override
-		public NULL patternComprehension(NULL aNull, NULL pos1, NULL aNull2, NULL aNull3, NULL aNull4, NULL expression1) {
+		public NULL unaryPlus(NULL p, NULL e) {
 			return null;
 		}
 
 		@Override
-		public NULL filterExpression(NULL aNull, NULL aNull2, NULL aNull3, NULL expression1) {
+		public NULL unaryMinus(NULL p, NULL e) {
 			return null;
 		}
 
 		@Override
-		public NULL extractExpression(NULL aNull, NULL aNull2, NULL aNull3, NULL expression1, NULL expression2) {
+		public NULL eq(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL reduceExpression(NULL aNull, NULL aNull2, NULL aNull3, NULL variable1, NULL expression1, NULL expression2) {
+		public NULL neq(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL allExpression(NULL aNull, NULL aNull2, NULL aNull3, NULL expression1) {
+		public NULL neq2(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL anyExpression(NULL aNull, NULL aNull2, NULL aNull3, NULL expression1) {
+		public NULL lte(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL noneExpression(NULL aNull, NULL aNull2, NULL aNull3, NULL expression1) {
+		public NULL gte(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL singleExpression(NULL aNull, NULL aNull2, NULL aNull3, NULL expression1) {
+		public NULL lt(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL patternExpression(NULL aNull, NULL aNull2) {
+		public NULL gt(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL existsSubQuery(NULL aNull, List<NULL> list, NULL aNull2) {
+		public NULL regeq(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL mapProjection(NULL aNull, NULL aNull2, List<NULL> list) {
+		public NULL startsWith(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL mapProjectionLiteralEntry(StringPos<NULL> stringPos, NULL aNull) {
+		public NULL endsWith(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL mapProjectionProperty(StringPos<NULL> stringPos) {
+		public NULL contains(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL mapProjectionVariable(NULL aNull) {
+		public NULL in(NULL p, NULL lhs, NULL rhs) {
 			return null;
 		}
 
 		@Override
-		public NULL mapProjectionAll(NULL aNull) {
+		public NULL isNull(NULL p, NULL e) {
 			return null;
 		}
 
 		@Override
-		public NULL caseExpression(NULL aNull, NULL aNull2, List<NULL> list, List<NULL> list1, NULL expression1) {
+		public NULL isNotNull(NULL p, NULL e) {
 			return null;
 		}
 
 		@Override
-		public NULL inputPosition(int i, int i1, int i2) {
+		public NULL listLookup(NULL list, NULL index) {
+			return null;
+		}
+
+		@Override
+		public NULL listSlice(NULL p, NULL list, NULL start, NULL end) {
+			return null;
+		}
+
+		@Override
+		public NULL newCountStar(NULL p) {
+			return null;
+		}
+
+		@Override
+		public NULL functionInvocation(NULL p, NULL functionNamePosition, List<String> namespace, String name, boolean distinct, List<NULL> arguments) {
+			return null;
+		}
+
+		@Override
+		public NULL listComprehension(NULL p, NULL v, NULL list, NULL where, NULL projection) {
+			return null;
+		}
+
+		@Override
+		public NULL patternComprehension(NULL p, NULL relationshipPatternPosition, NULL v, NULL aNull, NULL where, NULL projection) {
+			return null;
+		}
+
+		@Override
+		public NULL reduceExpression(NULL p, NULL acc, NULL accExpr, NULL v, NULL list, NULL innerExpr) {
+			return null;
+		}
+
+		@Override
+		public NULL allExpression(NULL p, NULL v, NULL list, NULL where) {
+			return null;
+		}
+
+		@Override
+		public NULL anyExpression(NULL p, NULL v, NULL list, NULL where) {
+			return null;
+		}
+
+		@Override
+		public NULL noneExpression(NULL p, NULL v, NULL list, NULL where) {
+			return null;
+		}
+
+		@Override
+		public NULL singleExpression(NULL p, NULL v, NULL list, NULL where) {
+			return null;
+		}
+
+		@Override
+		public NULL patternExpression(NULL p, NULL aNull) {
+			return null;
+		}
+
+		@Override
+		public NULL existsExpression(NULL p, List<NULL> nulls, NULL q, NULL aNull) {
+			return null;
+		}
+
+		@Override
+		public NULL countExpression(NULL p, List<NULL> nulls, NULL q, NULL aNull) {
+			return null;
+		}
+
+		@Override
+		public NULL collectExpression(NULL p, NULL q) {
+			return null;
+		}
+
+		@Override
+		public NULL mapProjection(NULL p, NULL v, List<NULL> nulls) {
+			return null;
+		}
+
+		@Override
+		public NULL mapProjectionLiteralEntry(StringPos<NULL> property, NULL value) {
+			return null;
+		}
+
+		@Override
+		public NULL mapProjectionProperty(StringPos<NULL> property) {
+			return null;
+		}
+
+		@Override
+		public NULL mapProjectionVariable(NULL v) {
+			return null;
+		}
+
+		@Override
+		public NULL mapProjectionAll(NULL p) {
+			return null;
+		}
+
+		@Override
+		public NULL caseExpression(NULL p, NULL e, List<NULL> whens, List<NULL> thens, NULL elze) {
+			return null;
+		}
+
+		@Override
+		public NULL inputPosition(int offset, int line, int column) {
+			return null;
+		}
+
+		@Override
+		public NULL nodeType() {
+			return null;
+		}
+
+		@Override
+		public NULL relationshipType() {
+			return null;
+		}
+
+		@Override
+		public NULL nodeOrRelationshipType() {
 			return null;
 		}
 	}

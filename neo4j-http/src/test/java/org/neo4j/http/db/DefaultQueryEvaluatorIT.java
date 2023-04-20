@@ -41,7 +41,7 @@ class DefaultQueryEvaluatorIT {
 
 	@SuppressWarnings("resource")
 	private static final Neo4jContainer<?> neo4j = new Neo4jContainer<>(DEFAULT_NEO4J_IMAGE)
-		.withLabsPlugins(Neo4jLabsPlugin.APOC_CORE)
+		.withLabsPlugins(Neo4jLabsPlugin.APOC)
 		.withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
 		.withReuse(true);
 
@@ -108,11 +108,6 @@ class DefaultQueryEvaluatorIT {
 
 	@ParameterizedTest
 	@ValueSource(strings = {
-		"""
-		USING PERIODIC COMMIT 500 LOAD CSV FROM 'file:///artists.csv' AS line
-		CREATE (:Artist {name: line[1], year: toInteger(line[2])})
-		""",
-		"   USING PERIODIC COMMIT 500 LOAD CSV FROM 'file:///artists.csv' AS line CREATE (:Artist {name: line[1], year: toInteger(line[2])})",
 		"""
 		LOAD CSV FROM 'file:///friends.csv' AS line
 		CALL {
