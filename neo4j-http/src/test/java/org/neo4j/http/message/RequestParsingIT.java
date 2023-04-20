@@ -156,7 +156,7 @@ public class RequestParsingIT {
 		ReactiveAuthenticationManager neo4jAuthenticationProvider() {
 			return authentication ->
 					Mono.just(new UsernamePasswordAuthenticationToken(
-							new Neo4jPrincipal("some"), authentication.getCredentials(), List.of())
+							new Neo4jPrincipal("some", "password"), authentication.getCredentials(), List.of())
 					);
 		}
 

@@ -74,7 +74,7 @@ class SSREnabledQueryEvaluatorIT {
 	void shouldAlwaysUseAuto(String query) {
 
 		var evaluator = new SSREnabledQueryEvaluator(driver);
-		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query)
+		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j","neo4j"), query)
 			.map(QueryEvaluator.ExecutionRequirements::target)
 			.as(StepVerifier::create)
 			.expectNext(Target.AUTO)

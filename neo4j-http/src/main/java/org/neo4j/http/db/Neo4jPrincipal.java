@@ -22,8 +22,9 @@ import org.springframework.security.core.AuthenticatedPrincipal;
  *
  * @author Michael J. Simons
  * @param username The username
+ * @param password The password
  */
-public record Neo4jPrincipal(String username) implements AuthenticatedPrincipal {
+public record Neo4jPrincipal(String username, String password) implements AuthenticatedPrincipal {
 
 	@Override
 	public String getName() {

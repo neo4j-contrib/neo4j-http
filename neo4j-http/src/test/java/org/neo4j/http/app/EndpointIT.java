@@ -17,7 +17,6 @@ package org.neo4j.http.app;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -40,7 +39,6 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.Neo4jContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.MountableFile;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers(disabledWithoutDocker = true)
@@ -51,8 +49,6 @@ class EndpointIT {
 	@SuppressWarnings("resource")
 	private static final Neo4jContainer<?> neo4j = new Neo4jContainer<>(DEFAULT_NEO4J_IMAGE)
 		.withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
-		.withPlugins(MountableFile.forHostPath(Path.of(System.getProperty("neo4j-http.plugins.impersonated-auth.artifact"))))
-		.withNeo4jConfig("dbms.security.procedures.unrestricted", "impersonation.authenticate")
 		.withReuse(true);
 
 	@DynamicPropertySource

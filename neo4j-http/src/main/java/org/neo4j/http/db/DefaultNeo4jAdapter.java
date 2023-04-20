@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.function.Function;
 
 import org.neo4j.driver.AccessMode;
+import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.BookmarkManager;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Query;
@@ -101,13 +102,13 @@ class DefaultNeo4jAdapter implements Neo4jAdapter {
 
 		var sessionSupplier = queryEvaluator.isEnterpriseEdition().
 			flatMap(v -> {
-				var builder = v ? SessionConfig.builder().withImpersonatedUser(principal.username()) : SessionConfig.builder();
-				var sessionConfig = builder
+				var sessionConfig = SessionConfig.builder()
 					.withBookmarkManager(bookmarkManager)
 					.withDatabase(database)
 					.withDefaultAccessMode(requirements.target() == QueryEvaluator.Target.WRITERS ? AccessMode.WRITE : AccessMode.READ)
 					.build();
-				return Mono.fromCallable(() -> driver.session(ReactiveSession.class, sessionConfig));
+				//TODO Support other kinds of AuthToken
+				return Mono.fromCallable(() -> driver.session(ReactiveSession.class, sessionConfig, AuthTokens.basic(principal.username(), principal.password())));
 			});
 
 		Flux<T> flow;
