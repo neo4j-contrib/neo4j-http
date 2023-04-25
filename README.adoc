@@ -38,6 +38,8 @@ All endpoints are protected via HTTP Basic Auth, analog to the current existing 
 
 WARNING: If you ever should think putting this PoC in production, make sure the traffic to it is over HTTPS and properly encrypted! You have been warned.
 
+WARNING: This application keeps credentials in memory for the duration of a request. This is necessary so that the credentials can be passed to the driver where authentication occurs.
+
 NOTE: Right now Neo4j is the authority for authentication, but this is completely swappable, for example for an Octa instance or similar.
 
 === Readers or writers?

@@ -73,7 +73,7 @@ class DefaultQueryEvaluatorIT {
 	void shouldDetectUpdatingOperators(String query) {
 
 		var evaluator = new DefaultQueryEvaluator(driver);
-		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j", "neo4j"), query)
+		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j", AuthTokens.basic("neo4j", neo4j.getAdminPassword())), query)
 			.map(QueryEvaluator.ExecutionRequirements::target)
 			.as(StepVerifier::create)
 			.expectNext(Target.WRITERS)
@@ -88,7 +88,7 @@ class DefaultQueryEvaluatorIT {
 	void shouldDetectNonUpdatingOperators(String query) {
 
 		var evaluator = new DefaultQueryEvaluator(driver);
-		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j","neo4j"), query)
+		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j",AuthTokens.basic("neo4j", neo4j.getAdminPassword())), query)
 			.map(QueryEvaluator.ExecutionRequirements::target)
 			.as(StepVerifier::create)
 			.expectNext(Target.READERS)
@@ -99,10 +99,10 @@ class DefaultQueryEvaluatorIT {
 	void shouldApplyPrincipal() {
 
 		var evaluator = new DefaultQueryEvaluator(driver);
-		var principal = new Neo4jPrincipal("foo","neo4j");
+		var principal = new Neo4jPrincipal("foo",AuthTokens.basic("foo", "incorrectPassword"));
 		evaluator.getExecutionRequirements(principal, "MATCH (n) RETURN n")
 				.as(StepVerifier::create)
-					.expectErrorMessage("Cannot impersonate user 'foo'.")
+					.expectErrorMessage("The client is unauthorized due to authentication failure.")
 						.verify();
 	}
 
@@ -119,7 +119,7 @@ class DefaultQueryEvaluatorIT {
 	void shouldDetectImplicitTransactionNeeds(String query) {
 
 		var evaluator = new DefaultQueryEvaluator(driver);
-		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j","neo4j"), query)
+		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j",AuthTokens.basic("neo4j", neo4j.getAdminPassword())), query)
 			.map(QueryEvaluator.ExecutionRequirements::transactionMode)
 			.as(StepVerifier::create)
 			.expectNext(TransactionMode.IMPLICIT)
@@ -142,7 +142,7 @@ class DefaultQueryEvaluatorIT {
 	void shouldDetectManagedTransactionNeeds(String query) {
 
 		var evaluator = new DefaultQueryEvaluator(driver);
-		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j","neo4j"), query)
+		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j",AuthTokens.basic("neo4j", neo4j.getAdminPassword())), query)
 			.map(QueryEvaluator.ExecutionRequirements::transactionMode)
 			.as(StepVerifier::create)
 			.expectNext(TransactionMode.MANAGED)

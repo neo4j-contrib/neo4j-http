@@ -17,6 +17,7 @@ package org.neo4j.http.auth;
 
 import java.util.List;
 
+import org.neo4j.driver.AuthTokens;
 import org.neo4j.http.db.Neo4jPrincipal;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -25,15 +26,19 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
 /**
+ * Processes the authentication from the HTTP request and maps it to the driver's {@link org.neo4j.driver.AuthToken}.
  *
+ * Note: Standard Spring practice is for the credentials to be erased from this point but they are kept on purpose
+ * so that they can be passed to the driver.
  */
 @Component
 final class DefaultAuthenticationProvider implements Neo4jAuthenticationProvider {
-
-	//TODO must be more suitable approach
 	@Override
 	public Mono<Authentication> authenticate(Authentication authentication) {
+		//TODO Support other kinds of AuthToken (e.g bearer, kerberos, none)
 		return Mono.<Authentication>fromCallable(() ->
-				new UsernamePasswordAuthenticationToken(new Neo4jPrincipal(authentication.getName(), (String) authentication.getCredentials()), authentication.getCredentials(), List.of())).share();
+				new UsernamePasswordAuthenticationToken(new Neo4jPrincipal(authentication.getName(),
+						AuthTokens.basic(authentication.getName(), (String) authentication.getCredentials())),
+						authentication.getCredentials(), List.of())).share();
 	}
 }

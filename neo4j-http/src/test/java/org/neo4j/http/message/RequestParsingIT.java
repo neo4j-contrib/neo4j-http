@@ -18,6 +18,7 @@ package org.neo4j.http.message;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Driver;
 import org.neo4j.http.app.Endpoint;
 import org.neo4j.http.config.JacksonConfig;
@@ -156,7 +157,7 @@ public class RequestParsingIT {
 		ReactiveAuthenticationManager neo4jAuthenticationProvider() {
 			return authentication ->
 					Mono.just(new UsernamePasswordAuthenticationToken(
-							new Neo4jPrincipal("some", "password"), authentication.getCredentials(), List.of())
+							new Neo4jPrincipal("some", AuthTokens.basic("some", "password")), authentication.getCredentials(), List.of())
 					);
 		}
 

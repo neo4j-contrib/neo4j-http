@@ -58,11 +58,10 @@ class DefaultQueryEvaluator extends AbstractQueryEvaluator {
 
 		var sessionSupplier = isEnterpriseEdition()
 			.flatMap(v -> {
-				var builder = v ? SessionConfig.builder().withImpersonatedUser(principal.username()) : SessionConfig.builder();
-				var sessionConfig = builder
+				var sessionConfig = SessionConfig.builder()
 					.withDefaultAccessMode(AccessMode.READ)
 					.build();
-				return Mono.fromCallable(() -> driver.session(ReactiveSession.class, sessionConfig));
+				return Mono.fromCallable(() -> driver.session(ReactiveSession.class, sessionConfig, principal.authToken()));
 			});
 
 		// Invalid queries will end up here for the first time.
