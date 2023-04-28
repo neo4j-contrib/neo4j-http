@@ -17,44 +17,47 @@ package org.neo4j.http.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Config;
 import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Logging;
+import org.neo4j.http.db.ResultContainer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.Neo4jContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-/**
- * Tests around authentication
- *
- * @author Michael J. Simons
- */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers(disabledWithoutDocker = true)
-class DefaultAuthenticationProviderIT {
+class AuthenticationIT {
 
 	static final String DEFAULT_NEO4J_IMAGE = System.getProperty("neo4j-http.default-neo4j-image");
 
 	@SuppressWarnings("resource")
 	private static final Neo4jContainer<?> neo4j = new Neo4jContainer<>(DEFAULT_NEO4J_IMAGE)
-		.withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
-		.withReuse(true);
+			.withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
+			.withReuse(true);
 
 	@DynamicPropertySource
 	static void prepareNeo4j(DynamicPropertyRegistry registry) {
 
 		neo4j.start();
 		try (
-			var driver = GraphDatabase.driver(neo4j.getBoltUrl(), AuthTokens.basic("neo4j", neo4j.getAdminPassword()), Config.builder().withLogging(Logging.none()).build());
-			var session = driver.session()
+				var driver = GraphDatabase.driver(neo4j.getBoltUrl(), AuthTokens.basic("neo4j", neo4j.getAdminPassword()), Config.builder().withLogging(Logging.none()).build());
+				var session = driver.session()
 		) {
 			session.run("CREATE USER jake IF NOT EXISTS SET PLAINTEXT PASSWORD 'verysecret' SET PASSWORD CHANGE NOT REQUIRED").consume();
 		}
@@ -68,29 +71,45 @@ class DefaultAuthenticationProviderIT {
 	private TestRestTemplate restTemplate;
 
 	@Test
-	void shouldUseDriverConnection() {
+	void shouldAcceptValidAuth() {
+		var headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+		var requestEntity = new HttpEntity<>(
+				"""
+						{
+						  "statements": [
+						    {
+						      "statement": "RETURN 1"
+						    }
+						  ]
+						}""", headers);
 
 		var exchange = this.restTemplate
-			.withBasicAuth("neo4j", neo4j.getAdminPassword())
-			.exchange("/tests/", HttpMethod.GET, null, String.class);
+				.withBasicAuth("jake", "verysecret")
+				.exchange("/db/neo4j/tx/commit", HttpMethod.POST, requestEntity, ResultContainer.class);
 		assertThat(exchange.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(exchange.getBody()).isEqualTo("index-neo4j");
 	}
 
 	@Test
-	void shouldCheckImposter() {
+	void shouldRejectInValidAuth() {
+		var headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+		var requestEntity = new HttpEntity<>(
+				"""
+						{
+						  "statements": [
+						    {
+						      "statement": "RETURN 1"
+						    }
+						  ]
+						}""", headers);
 
 		var exchange = this.restTemplate
-			.withBasicAuth("jake", "verysecret")
-			.exchange("/tests/", HttpMethod.GET, null, String.class);
-		assertThat(exchange.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(exchange.getBody()).isEqualTo("index-jake");
-	}
-
-	@Test
-	void shouldFailIfNoAuthProvided() {
-		var exchange = this.restTemplate
-			.exchange("/tests/", HttpMethod.GET, null, String.class);
+				.withBasicAuth("jake", "thisIsWrong!")
+				.exchange("/db/neo4j/tx/commit", HttpMethod.POST, requestEntity, new ParameterizedTypeReference<Map<String, String>>() {
+				});
 		assertThat(exchange.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
 }

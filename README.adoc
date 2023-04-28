@@ -38,10 +38,7 @@ All endpoints are protected via HTTP Basic Auth, analog to the current existing 
 
 WARNING: If you ever should think putting this PoC in protoduction, make sure the traffic to it is over HTTPS and properly encrypted! You have been warned.
 
-If you want to use any other user account than the one that is used to connect *this* application to Neo4j, we make use of the Neo4j impersonation feature. Several things are to be taken into consideration then:
-
-* You need the enterprise edition for this to work
-* You need to install the `neo4j-impersonated-auth` plugin for this to work as currently impersonation does not allow authentication without any additional means
+WARNING: This application keeps credentials in memory for the duration of a request. This is necessary so that the credentials can be passed to the driver where authentication occurs.
 
 NOTE: Right now Neo4j is the authority for authentication, but this is completely swappable, for example for an Octa instance or similar.
 
@@ -266,7 +263,7 @@ All other parameters can be specified by default JSON types, such as literal `nu
 
 This endpoint behaves just like the current Neo4j-HTTP and also supports its current parameters and options. As a matter of fact, the Neo4j-OGM-HTTP driver tests successfully against it. For the basic format used, see https://neo4j.com/docs/http-api/current/actions/[Cypher transaction API].
 
-NOTE: This PoC only allows "Beginning and committing a transaction in one request" as defined https://neo4j.com/docs/http-api/current/actions/begin-and-commit-a-transaction-in-one-request/[here] to keep the API stateles.
+NOTE: This PoC only allows "Beginning and committing a transaction in one request" as defined https://neo4j.com/docs/http-api/current/actions/begin-and-commit-a-transaction-in-one-request/[here] to keep the API stateless.
 
 An example call taken straight from the above documentation looks like this:
 

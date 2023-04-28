@@ -15,6 +15,7 @@
  */
 package org.neo4j.http.db;
 
+import org.neo4j.driver.AuthToken;
 import org.springframework.security.core.AuthenticatedPrincipal;
 
 /**
@@ -22,8 +23,9 @@ import org.springframework.security.core.AuthenticatedPrincipal;
  *
  * @author Michael J. Simons
  * @param username The username
+ * @param authToken The driver {@link org.neo4j.driver.AuthToken} to be used on the session.
  */
-public record Neo4jPrincipal(String username) implements AuthenticatedPrincipal {
+public record Neo4jPrincipal(String username, AuthToken authToken) implements AuthenticatedPrincipal {
 
 	@Override
 	public String getName() {

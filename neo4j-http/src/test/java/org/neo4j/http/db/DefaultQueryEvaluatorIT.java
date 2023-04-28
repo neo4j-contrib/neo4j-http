@@ -41,7 +41,7 @@ class DefaultQueryEvaluatorIT {
 
 	@SuppressWarnings("resource")
 	private static final Neo4jContainer<?> neo4j = new Neo4jContainer<>(DEFAULT_NEO4J_IMAGE)
-		.withLabsPlugins(Neo4jLabsPlugin.APOC_CORE)
+		.withLabsPlugins(Neo4jLabsPlugin.APOC)
 		.withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
 		.withReuse(true);
 
@@ -49,7 +49,6 @@ class DefaultQueryEvaluatorIT {
 
 	@BeforeAll
 	static void prepareNeo4j() {
-
 		neo4j.start();
 		driver = GraphDatabase.driver(neo4j.getBoltUrl(), AuthTokens.basic("neo4j", neo4j.getAdminPassword()), Config.builder().withLogging(Logging.none()).build());
 	}
@@ -74,7 +73,7 @@ class DefaultQueryEvaluatorIT {
 	void shouldDetectUpdatingOperators(String query) {
 
 		var evaluator = new DefaultQueryEvaluator(driver);
-		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query)
+		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j", AuthTokens.basic("neo4j", neo4j.getAdminPassword())), query)
 			.map(QueryEvaluator.ExecutionRequirements::target)
 			.as(StepVerifier::create)
 			.expectNext(Target.WRITERS)
@@ -89,7 +88,7 @@ class DefaultQueryEvaluatorIT {
 	void shouldDetectNonUpdatingOperators(String query) {
 
 		var evaluator = new DefaultQueryEvaluator(driver);
-		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query)
+		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j",AuthTokens.basic("neo4j", neo4j.getAdminPassword())), query)
 			.map(QueryEvaluator.ExecutionRequirements::target)
 			.as(StepVerifier::create)
 			.expectNext(Target.READERS)
@@ -100,20 +99,15 @@ class DefaultQueryEvaluatorIT {
 	void shouldApplyPrincipal() {
 
 		var evaluator = new DefaultQueryEvaluator(driver);
-		var principal = new Neo4jPrincipal("foo");
+		var principal = new Neo4jPrincipal("foo",AuthTokens.basic("foo", "incorrectPassword"));
 		evaluator.getExecutionRequirements(principal, "MATCH (n) RETURN n")
 				.as(StepVerifier::create)
-					.expectErrorMessage("Cannot impersonate user 'foo'.")
+					.expectErrorMessage("The client is unauthorized due to authentication failure.")
 						.verify();
 	}
 
 	@ParameterizedTest
 	@ValueSource(strings = {
-		"""
-		USING PERIODIC COMMIT 500 LOAD CSV FROM 'file:///artists.csv' AS line
-		CREATE (:Artist {name: line[1], year: toInteger(line[2])})
-		""",
-		"   USING PERIODIC COMMIT 500 LOAD CSV FROM 'file:///artists.csv' AS line CREATE (:Artist {name: line[1], year: toInteger(line[2])})",
 		"""
 		LOAD CSV FROM 'file:///friends.csv' AS line
 		CALL {
@@ -125,7 +119,7 @@ class DefaultQueryEvaluatorIT {
 	void shouldDetectImplicitTransactionNeeds(String query) {
 
 		var evaluator = new DefaultQueryEvaluator(driver);
-		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query)
+		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j",AuthTokens.basic("neo4j", neo4j.getAdminPassword())), query)
 			.map(QueryEvaluator.ExecutionRequirements::transactionMode)
 			.as(StepVerifier::create)
 			.expectNext(TransactionMode.IMPLICIT)
@@ -148,7 +142,7 @@ class DefaultQueryEvaluatorIT {
 	void shouldDetectManagedTransactionNeeds(String query) {
 
 		var evaluator = new DefaultQueryEvaluator(driver);
-		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query)
+		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j",AuthTokens.basic("neo4j", neo4j.getAdminPassword())), query)
 			.map(QueryEvaluator.ExecutionRequirements::transactionMode)
 			.as(StepVerifier::create)
 			.expectNext(TransactionMode.MANAGED)

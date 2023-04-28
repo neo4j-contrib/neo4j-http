@@ -17,7 +17,6 @@ package org.neo4j.http.app;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -26,7 +25,6 @@ import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Config;
 import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Logging;
-import org.neo4j.http.db.ResultContainer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -40,7 +38,6 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.Neo4jContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.MountableFile;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers(disabledWithoutDocker = true)
@@ -51,8 +48,6 @@ class EndpointIT {
 	@SuppressWarnings("resource")
 	private static final Neo4jContainer<?> neo4j = new Neo4jContainer<>(DEFAULT_NEO4J_IMAGE)
 		.withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
-		.withPlugins(MountableFile.forHostPath(Path.of(System.getProperty("neo4j-http.plugins.impersonated-auth.artifact"))))
-		.withNeo4jConfig("dbms.security.procedures.unrestricted", "impersonation.authenticate")
 		.withReuse(true);
 
 	@DynamicPropertySource
@@ -63,7 +58,7 @@ class EndpointIT {
 			var driver = GraphDatabase.driver(neo4j.getBoltUrl(), AuthTokens.basic("neo4j", neo4j.getAdminPassword()), Config.builder().withLogging(Logging.none()).build());
 			var session = driver.session()
 		) {
-			session.run("CREATE USER jake IF NOT EXISTS SET PLAINTEXT PASSWORD 'xyz' SET PASSWORD CHANGE NOT REQUIRED").consume();
+			session.run("CREATE USER jake IF NOT EXISTS SET PLAINTEXT PASSWORD 'verysecret' SET PASSWORD CHANGE NOT REQUIRED").consume();
 		}
 
 		registry.add("spring.neo4j.authentication.username", () -> "neo4j");
@@ -82,9 +77,9 @@ class EndpointIT {
 		headers.setAccept(List.of(MediaType.APPLICATION_NDJSON));
 		var requestEntity = new HttpEntity<>(
 			"""
-				{
-				    "statement": "MATCH n RETURN n"
-				}""", headers);
+			{
+			    "statement": "MATCH n RETURN n"
+			}""", headers);
 
 		var exchange = this.restTemplate
 			.withBasicAuth("neo4j", neo4j.getAdminPassword())
@@ -97,31 +92,21 @@ class EndpointIT {
 	}
 
 	@Test
-	void shouldExecuteQuery() {
+	void queryEvaluatorShouldWork() {
 
 		var headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
-		headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+		headers.setAccept(List.of(MediaType.APPLICATION_NDJSON));
 		var requestEntity = new HttpEntity<>(
 			"""
-					{
-						"statements": [
-							{
-								"statement": "MATCH (n) RETURN count(n) as numberOfNodes"
-							}
-						]
-				}""",
-			headers);
+			{
+			    "statement": "MATCH (n) RETURN n"
+			}""", headers);
 
 		var exchange = this.restTemplate
 			.withBasicAuth("neo4j", neo4j.getAdminPassword())
-			.exchange("/db/neo4j/tx/commit", HttpMethod.POST, requestEntity, ResultContainer.class);
-
+			.exchange("/db/neo4j/tx/commit", HttpMethod.POST, requestEntity, new ParameterizedTypeReference<Map<String, String>>() {
+			});
 		assertThat(exchange.getStatusCode()).isEqualTo(HttpStatus.OK);
-		var resultContainer = exchange.getBody();
-		assertThat(resultContainer.getResults())
-			.hasSize(1)
-			.first()
-			.satisfies(r -> assertThat(r.data()).hasSize(1));
 	}
 }

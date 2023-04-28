@@ -26,8 +26,8 @@ import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Logging;
 import org.neo4j.http.db.QueryEvaluator.Target;
 import org.testcontainers.containers.Neo4jContainer;
-import org.testcontainers.containers.Neo4jLabsPlugin;
 
+import org.testcontainers.containers.Neo4jLabsPlugin;
 import reactor.test.StepVerifier;
 
 /**
@@ -39,7 +39,7 @@ class SSREnabledQueryEvaluatorIT {
 
 	@SuppressWarnings("resource")
 	private static final Neo4jContainer<?> neo4j = new Neo4jContainer<>(DEFAULT_NEO4J_IMAGE)
-		.withLabsPlugins(Neo4jLabsPlugin.APOC_CORE)
+		.withLabsPlugins(Neo4jLabsPlugin.APOC)
 		.withEnv("NEO4J_ACCEPT_LICENSE_AGREEMENT", "yes")
 		.withReuse(true);
 
@@ -74,7 +74,7 @@ class SSREnabledQueryEvaluatorIT {
 	void shouldAlwaysUseAuto(String query) {
 
 		var evaluator = new SSREnabledQueryEvaluator(driver);
-		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j"), query)
+		evaluator.getExecutionRequirements(new Neo4jPrincipal("neo4j",AuthTokens.basic("neo4j", "neo4j")), query)
 			.map(QueryEvaluator.ExecutionRequirements::target)
 			.as(StepVerifier::create)
 			.expectNext(Target.AUTO)

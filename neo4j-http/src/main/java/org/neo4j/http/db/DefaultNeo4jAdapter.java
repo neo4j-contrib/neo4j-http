@@ -31,6 +31,7 @@ import org.neo4j.driver.reactivestreams.ReactiveSession;
 import org.neo4j.driver.summary.ResultSummary;
 import org.neo4j.http.config.ApplicationProperties;
 import org.reactivestreams.Publisher;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 
 import reactor.core.publisher.Flux;
@@ -85,7 +86,7 @@ class DefaultNeo4jAdapter implements Neo4jAdapter {
 							.zipWith(Flux.from(reactiveResult.records()).collectList())
 							.flatMap(v -> Mono.just(v).zipWith(Mono.fromDirect(reactiveResult.consume()), (t, s) -> Tuples.of(t.getT1(), t.getT2(), s))))
 						.map(content -> new ResultAndSummary(EagerResult.success(content, annotatedQuery.includeStats(), annotatedQuery.resultDataContents()), content.getT3()));
-				}))).onErrorResume(Neo4jException.class, e -> Mono.just(new ResultAndSummary(EagerResult.error(e), null)))
+				}))).onErrorResume(Neo4jException.class, e -> e.code().equals("Neo.ClientError.Security.Unauthorized") ? Mono.error(new BadCredentialsException("Authentication failed.")) : Mono.just(new ResultAndSummary(EagerResult.error(e), null)))
 			)
 			.collect(ResultContainer::new, (container, element) -> {
 				if (element.result().isError()) {
@@ -98,16 +99,14 @@ class DefaultNeo4jAdapter implements Neo4jAdapter {
 	}
 
 	<T> Publisher<T> execute0(Neo4jPrincipal principal, String database, QueryEvaluator.ExecutionRequirements requirements, Function<ReactiveQueryRunner, Publisher<T>> query) {
-
 		var sessionSupplier = queryEvaluator.isEnterpriseEdition().
 			flatMap(v -> {
-				var builder = v ? SessionConfig.builder().withImpersonatedUser(principal.username()) : SessionConfig.builder();
-				var sessionConfig = builder
+				var sessionConfig = SessionConfig.builder()
 					.withBookmarkManager(bookmarkManager)
 					.withDatabase(database)
 					.withDefaultAccessMode(requirements.target() == QueryEvaluator.Target.WRITERS ? AccessMode.WRITE : AccessMode.READ)
 					.build();
-				return Mono.fromCallable(() -> driver.session(ReactiveSession.class, sessionConfig));
+				return Mono.fromCallable(() -> driver.session(ReactiveSession.class, sessionConfig, principal.authToken()));
 			});
 
 		Flux<T> flow;
