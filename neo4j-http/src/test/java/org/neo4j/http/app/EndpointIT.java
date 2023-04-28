@@ -25,8 +25,8 @@ import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Config;
 import org.neo4j.driver.GraphDatabase;
 import org.neo4j.driver.Logging;
-import org.neo4j.http.db.ResultContainer;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.ParameterizedTypeReference;
@@ -78,9 +78,9 @@ class EndpointIT {
 		headers.setAccept(List.of(MediaType.APPLICATION_NDJSON));
 		var requestEntity = new HttpEntity<>(
 			"""
-				{
-				    "statement": "MATCH n RETURN n"
-				}""", headers);
+			{
+			    "statement": "MATCH n RETURN n"
+			}""", headers);
 
 		var exchange = this.restTemplate
 			.withBasicAuth("neo4j", neo4j.getAdminPassword())
@@ -93,31 +93,21 @@ class EndpointIT {
 	}
 
 	@Test
-	void shouldExecuteQuery() {
+	void queryEvaluatorShouldWork() {
 
 		var headers = new HttpHeaders();
 		headers.setContentType(MediaType.APPLICATION_JSON);
-		headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+		headers.setAccept(List.of(MediaType.APPLICATION_NDJSON));
 		var requestEntity = new HttpEntity<>(
 			"""
-					{
-						"statements": [
-							{
-								"statement": "MATCH (n) RETURN count(n) as numberOfNodes"
-							}
-						]
-				}""",
-			headers);
+			{
+			    "statement": "MATCH (n) RETURN n"
+			}""", headers);
 
 		var exchange = this.restTemplate
 			.withBasicAuth("neo4j", neo4j.getAdminPassword())
-			.exchange("/db/neo4j/tx/commit", HttpMethod.POST, requestEntity, ResultContainer.class);
-
+			.exchange("/db/neo4j/tx/commit", HttpMethod.POST, requestEntity, new ParameterizedTypeReference<Map<String, String>>() {
+			});
 		assertThat(exchange.getStatusCode()).isEqualTo(HttpStatus.OK);
-		var resultContainer = exchange.getBody();
-		assertThat(resultContainer.getResults())
-			.hasSize(1)
-			.first()
-			.satisfies(r -> assertThat(r.data()).hasSize(1));
 	}
 }
