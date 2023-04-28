@@ -36,7 +36,7 @@ This PoC uses the reactive Neo4j-Java-Driver to connect to any Neo4j instance, d
 
 All endpoints are protected via HTTP Basic Auth, analog to the current existing Neo4j-HTTP API. The username / password is the same as your Neo4j instance, exactly as it is today with an on-prem Neo4j instance.
 
-WARNING: If you ever should think putting this PoC in production, make sure the traffic to it is over HTTPS and properly encrypted! You have been warned.
+WARNING: If you ever should think putting this PoC in protoduction, make sure the traffic to it is over HTTPS and properly encrypted! You have been warned.
 
 WARNING: This application keeps credentials in memory for the duration of a request. This is necessary so that the credentials can be passed to the driver where authentication occurs.
 

@@ -27,9 +27,10 @@ import reactor.core.publisher.Mono;
 
 /**
  * Processes the authentication from the HTTP request and maps it to the driver's {@link org.neo4j.driver.AuthToken}.
- *
+ * <p>
  * Note: Standard Spring practice is for the credentials to be erased from this point but they are kept on purpose
  * so that they can be passed to the driver.
+ * @author Michael J. Simons
  */
 @Component
 final class DefaultAuthenticationProvider implements Neo4jAuthenticationProvider {
