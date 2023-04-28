@@ -100,6 +100,17 @@ This requires at least GraalVM 22.3 with native image installed
 ./mvnw -Pnative clean package native:compile
 ----
 
+=== Creating a native image inside docker
+
+This requires at least GraalVM 22.3 with native image installed
+
+[source,bash]
+----
+./mvnw -Pnative clean spring-boot:build-image -Dspring-boot.build-image.imageName=neo4j/neo4j-http-native
+----
+
+NOTE: Native image docker containers are not currently supported on ARM chipsets (see: https://github.com/spring-projects/spring-boot/wiki/Spring-Boot-with-GraalVM#building-container-images)
+
 === Running the Jar-File
 
 All https://docs.spring.io/spring-boot/docs/current/reference/html/application-properties.html#appendix.application-properties.data[Neo4j related data properties] - those are all that start with `spring.neo4j.*` - can be used to configure the Bolt connection. These can come from `application.properties`  or `application.yml` files. Basically, all features of https://docs.spring.io/spring-boot/docs/current/reference/html/features.html#features.external-config[externalized configuration] can be used.
