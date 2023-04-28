@@ -60,7 +60,7 @@ public class Endpoint {
 		@PathVariable(required = false) Optional<String> database,
 		@RequestBody AnnotatedQuery.Container queries
 	) {
-		if (queries.value().isEmpty()) {
+		if (queries.value() == null || queries.value().isEmpty()) {
 			return Mono.just(new ResultContainer());
 		}
 		return neo4j.run(authentication, database.orElse(DEFAULT_DATABASE_NAME), queries.value().get(0), queries.value().stream().skip(1).toArray(AnnotatedQuery[]::new));
