@@ -21,6 +21,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.web.reactive.config.CorsRegistry;
+import org.springframework.web.reactive.config.WebFluxConfigurer;
 
 /**
  * Custom security configuration. For example, CSRF protection is useful when dealing with web forms etc. but not with a REST api.
@@ -43,7 +45,22 @@ public class SecurityConfig {
 				.anyExchange().authenticated()
 			)
 			.httpBasic().and()
+			.cors().and()
 			.csrf().disable()
 			.build();
+	}
+
+	@Bean
+	WebFluxConfigurer corsConfiguration() {
+		return new WebFluxConfigurer() {
+			@Override
+			public void addCorsMappings(CorsRegistry registry) {
+				registry.addMapping("/api/**")
+					.allowedOrigins("https://localhost:3000")
+					.allowedMethods("GET", "PUT", "POST", "DELETE")
+					.allowedHeaders("*")
+					.allowCredentials(true).maxAge(3600);
+			}
+		};
 	}
 }
